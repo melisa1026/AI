@@ -80,11 +80,11 @@ class Unit:
         p = self.player.name.lower()[0]
         t = self.type.name.upper()[0]
         return f"{p}{t}{self.health}"
-
+    
     def __str__(self) -> str:
         """Text representation of this unit."""
         return self.to_string()
-
+    
     def damage_amount(self, target: Unit) -> int:
         """How much can this unit damage another unit."""
         amount = self.damage_table[self.type.value][target.type.value]
@@ -100,7 +100,6 @@ class Unit:
         return amount
 
 ##############################################################################################################
-
 
 @dataclass(slots=True)
 class Coord:
@@ -125,11 +124,11 @@ class Coord:
     def to_string(self) -> str:
         """Text representation of this Coord."""
         return self.row_string()+self.col_string()
-
+    
     def __str__(self) -> str:
         """Text representation of this Coord."""
         return self.to_string()
-
+    
     def clone(self) -> Coord:
         """Clone a Coord."""
         return copy.copy(self)
@@ -172,7 +171,7 @@ class CoordPair:
     def to_string(self) -> str:
         """Text representation of a CoordPair."""
         return self.src.to_string()+" "+self.dst.to_string()
-
+    
     def __str__(self) -> str:
         """Text representation of a CoordPair."""
         return self.to_string()
@@ -191,12 +190,12 @@ class CoordPair:
     def from_quad(cls, row0: int, col0: int, row1: int, col1: int) -> CoordPair:
         """Create a CoordPair from 4 integers."""
         return CoordPair(Coord(row0,col0),Coord(row1,col1))
-
+    
     @classmethod
     def from_dim(cls, dim: int) -> CoordPair:
         """Create a CoordPair based on a dim-sized rectangle."""
         return CoordPair(Coord(0,0),Coord(dim-1,dim-1))
-
+    
     @classmethod
     def from_string(cls, s : str) -> CoordPair | None:
         """Create a CoordPair from a string. ex: A3 B2"""
@@ -363,7 +362,7 @@ class Game:
     def __str__(self) -> str:
         """Default string representation of a game."""
         return self.to_string()
-
+    
     def is_valid_coord(self, coord: Coord) -> bool:
         """Check if a Coord is valid within out board dimensions."""
         dim = self.options.dim
@@ -380,7 +379,7 @@ class Game:
                 return coords
             else:
                 print('Invalid coordinates! Try again.')
-
+    
     def human_turn(self):
         """Human player plays a move (or get via broker)."""
         if self.options.broker is not None:
@@ -437,7 +436,7 @@ class Game:
             if self._defender_has_ai:
                 return None
             else:
-                return Player.Attacker
+                return Player.Attacker    
         elif self._defender_has_ai:
             return Player.Defender
 
@@ -563,6 +562,26 @@ def main():
     if args.broker is not None:
         options.broker = args.broker
 
+
+
+# Track game parameters
+    is_alpha_beta = "true" if options.alpha_beta else "false"
+    timeout = str(options.max_time)
+    max_turns = str(options.max_turns)
+
+    # Generate the output file name
+    output_file_name = f"gameTrace-{is_alpha_beta}-{timeout}-{max_turns}.txt"
+
+    # Open the output file for writing
+    with open(output_file_name, "w") as output_file:
+
+        # Write game parameters to the output file
+        output_file.write(f"Timeout (seconds): {timeout}\n")
+        output_file.write(f"Max Turns: {max_turns}\n")
+        output_file.write(f"Alpha-Beta: {is_alpha_beta}\n")
+        output_file.write(f"Player 1: {'AI' if game_type != GameType.AttackerVsDefender else 'H'}\n")
+        output_file.write(f"Player 2: {'AI' if game_type != GameType.AttackerVsDefender else 'H'}\n")
+
     # create a new game
     game = Game(options=options)
 
@@ -572,7 +591,7 @@ def main():
         print(game)
         winner = game.has_winner()
         if winner is not None:
-            print(f"{winner.name} wins!")
+            output_file.write(f"{winner.name} wins!")
             break
         if game.options.game_type == GameType.AttackerVsDefender:
             game.human_turn()
@@ -588,6 +607,8 @@ def main():
             else:
                 print("Computer doesn't know what to do!!!")
                 exit(1)
+
+
 
 ##############################################################################################################
 
