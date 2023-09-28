@@ -237,6 +237,24 @@ class Stats:
 
 ##############################################################################################################
 
+def get_initial_board_configuration(game):
+    dim = game.options.dim
+    initial_board = ""
+    for row in range(dim):
+     for col in range(dim):
+            unit = game.get(Coord(row, col))
+            if unit is None:
+                initial_board += "."
+            else:
+                initial_board += str(unit)
+    return initial_board
+
+
+
+
+
+##############################################################################################################
+
 @dataclass(slots=True)
 class Game:
     """Representation of the game state."""
@@ -247,6 +265,7 @@ class Game:
     stats: Stats = field(default_factory=Stats)
     _attacker_has_ai : bool = True
     _defender_has_ai : bool = True
+    initial_board_configuration: str = ""  # Define initial_board_configuration as a class attribute
 
     def __post_init__(self):
         """Automatically called after class init to set up the default board state."""
@@ -265,6 +284,9 @@ class Game:
         self.set(Coord(md-2,md),Unit(player=Player.Attacker,type=UnitType.Program))
         self.set(Coord(md,md-2),Unit(player=Player.Attacker,type=UnitType.Program))
         self.set(Coord(md-1,md-1),Unit(player=Player.Attacker,type=UnitType.Firewall))
+
+        # Generate the initial board configuration and store it in an instance variable
+        self.initial_board_configuration = get_initial_board_configuration(self)
 
     def clone(self) -> Game:
         """Make a new copy of a game for minimax recursion.
@@ -563,6 +585,9 @@ def main():
         options.broker = args.broker
 
 
+# create a new game
+
+    game = Game(options=options)
 
 # Track game parameters
     is_alpha_beta = "true" if options.alpha_beta else "false"
@@ -581,9 +606,13 @@ def main():
         output_file.write(f"Alpha-Beta: {is_alpha_beta}\n")
         output_file.write(f"Player 1: {'AI' if game_type != GameType.AttackerVsDefender else 'H'}\n")
         output_file.write(f"Player 2: {'AI' if game_type != GameType.AttackerVsDefender else 'H'}\n")
+        output_file.write("\nInitial Configuration:\n")
+        # Write the initial board configuration to the output file
+        output_file.write(game.initial_board_configuration)
 
-    # create a new game
-    game = Game(options=options)
+
+
+    
 
     # the main game loop
     while True:
@@ -613,4 +642,4 @@ def main():
 ##############################################################################################################
 
 if __name__ == '__main__':
-    main()
+       game = main()
