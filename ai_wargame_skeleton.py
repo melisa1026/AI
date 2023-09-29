@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass, field
 from time import sleep
-from typing import Tuple, TypeVar, Type, Iterable, ClassVar
+from typing import Tuple, TypeVar, Type, Iterable, ClassVar, Dict
 import random
 import requests
 
@@ -226,6 +226,7 @@ class Options:
     max_turns : int | None = 100
     randomize_moves : bool = True
     broker : str | None = None
+    heuristic_name: str | None = None  
 
 ##############################################################################################################
 
@@ -234,7 +235,20 @@ class Stats:
     """Representation of the global game statistics."""
     evaluations_per_depth : dict[int,int] = field(default_factory=dict)
     total_seconds: float = 0.0
+    cumulative_evals: int = 0
+    evals_by_depth: Dict[int, int] = field(default_factory=dict)
 
+    def update_cumulative_evals(self, depth: int, evals: int):
+        self.cumulative_evals += evals
+        self.evals_by_depth[depth] = self.evals_by_depth.get(depth, 0) + evals
+
+    def get_percentage_evals_by_depth(self):
+        total_evals = self.cumulative_evals
+        percentages = {}
+        for depth, evals in self.evals_by_depth.items():
+            percentages[depth] = (evals / total_evals) * 100
+        return percentages
+    
 ##############################################################################################################
 
 def get_initial_board_configuration(game):
@@ -341,13 +355,14 @@ class Game:
         unit = self.get(coords.dst)
         return (unit is None)
 
-    def perform_move(self, coords : CoordPair) -> Tuple[bool,str]:
+    def perform_move(self, coords : CoordPair) -> Tuple[bool,str, int]:
         """Validate and perform a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
         if self.is_valid_move(coords):
             self.set(coords.dst,self.get(coords.src))
             self.set(coords.src,None)
-            return (True,"")
-        return (False,"invalid move")
+            evals = self.evaluate_states()  # Add a method to evaluate states
+            return (True,"" , evals)
+        return (False,"invalid move", 0)
 
     def next_turn(self):
         """Transitions game to the next turn."""
@@ -474,31 +489,42 @@ class Game:
             move.dst = src
             yield move.clone()
 
-    def random_move(self) -> Tuple[int, CoordPair | None, float]:
+    def random_move(self) -> Tuple[int, CoordPair | None, float, int]:
         """Returns a random move."""
+        evals = 0 
         move_candidates = list(self.move_candidates())
         random.shuffle(move_candidates)
         if len(move_candidates) > 0:
             return (0, move_candidates[0], 1)
         else:
-            return (0, None, 0)
+            return (0, move_candidates[0], 1, evals)
 
     def suggest_move(self) -> CoordPair | None:
         """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
         start_time = datetime.now()
-        (score, move, avg_depth) = self.random_move()
+        (score, move, avg_depth, evals) = self.random_move()
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
         self.stats.total_seconds += elapsed_seconds
+        self.stats.update_cumulative_evals(avg_depth, evals)  # Update cumulative evals
+        percentages = self.stats.get_percentage_evals_by_depth()  # Get percentage evals by depth
+        branching_factor = evals / max(1, self.turns_played)  # Calculate branching factor
+        print(f"Turn #{self.turns_played}")
+        print(f"Player {self.next_player.name}:", end=' ')
+        print(f"Action: {move}" if move else "No valid moves")
+        print(f"Time for this action: {elapsed_seconds:.2f} sec")
         print(f"Heuristic score: {score}")
-        print(f"Average recursive depth: {avg_depth:0.1f}")
-        print(f"Evals per depth: ",end='')
-        for k in sorted(self.stats.evaluations_per_depth.keys()):
-            print(f"{k}:{self.stats.evaluations_per_depth[k]} ",end='')
+        print(f"New Configuration:")
+        print(self)
+        print(f"Cumulative evals: {self.stats.cumulative_evals/1e6:.2f}M")
+        print(f"Cumulative evals by depth:", end=' ')
+        for depth, depth_evals in self.stats.evals_by_depth.items():
+         print(f"{depth}={depth_evals}", end=' ')
         print()
-        total_evals = sum(self.stats.evaluations_per_depth.values())
-        if self.stats.total_seconds > 0:
-            print(f"Eval perf.: {total_evals/self.stats.total_seconds/1000:0.1f}k/s")
-        print(f"Elapsed time: {elapsed_seconds:0.1f}s")
+        print(f"Cumulative % evals by depth:", end=' ')
+        for depth, percentage in percentages.items():
+         print(f"{depth}={percentage:.1f}%", end=' ')
+        print()
+        print(f"Average branching factor: {branching_factor:.1f}")
         return move
 
     def post_move_to_broker(self, move: CoordPair):
@@ -552,6 +578,20 @@ class Game:
 
 ##############################################################################################################
 
+cumulative_info = {}
+def print_cumulative_info(player):
+    print(f"Cumulative Information (Player {player.name} - {'AI' if player != Player.AttackerVsDefender else 'H'}):")
+    print(f"Cumulative Evals: {cumulative_info[player]['Cumulative Evals']/1e6:.2f}M")
+    print(f"Cumulative Evals by Depth:", end=' ')
+    for depth, depth_evals in cumulative_info[player]["Cumulative Evals by Depth"].items():
+        print(f"{depth}={depth_evals}", end=' ')
+    print()
+    print(f"Cumulative % Evals by Depth:", end=' ')
+    for depth, percentage in cumulative_info[player]["Cumulative % Evals by Depth"].items():
+        print(f"{depth}={percentage:.1f}%", end=' ')
+    print()
+    print(f"Average Branching Factor: {cumulative_info[player]['Average Branching Factor']:.1f}")
+
 def main():
     # parse command line arguments
     parser = argparse.ArgumentParser(
@@ -573,6 +613,23 @@ def main():
     else:
         game_type = GameType.CompVsComp
 
+
+
+  # Create a dictionary to store cumulative information for each player
+    cumulative_info = {
+        Player.Attacker: {
+            "Cumulative Evals": 0,
+            "Cumulative Evals by Depth": {},
+            "Cumulative % Evals by Depth": {},
+            "Average Branching Factor": 0.0,
+        },
+        Player.Defender: {
+            "Cumulative Evals": 0,
+            "Cumulative Evals by Depth": {},
+            "Cumulative % Evals by Depth": {},
+            "Average Branching Factor": 0.0,
+        },
+    }
     # set up game options
     options = Options(game_type=game_type)
 
@@ -631,6 +688,13 @@ def main():
         else:
             player = game.next_player
             move = game.computer_turn()
+
+
+            #action information to the trace file
+            with open(output_file_name, "a") as output_file:
+                output_file.write(f"Turn #{game.turns_played}\n")
+                output_file.write(f"Player {player.name}: Action: {move}\n")
+
             if move is not None:
                 game.post_move_to_broker(move)
             else:
