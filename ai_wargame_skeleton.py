@@ -21,6 +21,14 @@ class UnitType(Enum):
     Program = 3
     Firewall = 4
 
+class MovementDirection(Enum):
+    Invalid = 0
+    Stay = 1
+    Up = 2
+    Down = 3
+    Right = 4
+    Left = 5
+
 class Player(Enum):
     """The 2 players."""
     Attacker = 0
@@ -346,23 +354,171 @@ class Game:
             self.remove_dead(coord)
 
     def is_valid_move(self, coords : CoordPair) -> bool:
-        """Validate a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
+        """Validate a move expressed as a CoordPair."""
+
+        # validate coordinates
         if not self.is_valid_coord(coords.src) or not self.is_valid_coord(coords.dst):
             return False
-        unit = self.get(coords.src)
-        if unit is None or unit.player != self.next_player:
-            return False
-        unit = self.get(coords.dst)
-        return (unit is None)
 
-    def perform_move(self, coords : CoordPair) -> Tuple[bool,str, int]:
-        """Validate and perform a move expressed as a CoordPair. TODO: WRITE MISSING CODE!!!"""
+        # check if a valid unit was selected (player or opponent)
+        attacking_unit = self.get(coords.src)
+        if attacking_unit is None or attacking_unit.player != self.next_player:
+            return False
+
+        defending_unit = self.get(coords.dst)
+
+        # self destruct
+        if attacking_unit == defending_unit:
+            return True
+
+        # move onto another unit
+        elif defending_unit is not None:
+            # any adversary units can attack each other
+            if attacking_unit.to_string()[0] != defending_unit.to_string()[0]:
+                return True
+            # unit can only do a repair movement if it has an effect
+            else:
+                if(attacking_unit.repair_amount(defending_unit)>0):
+                    return True
+                return False
+
+        # moving onto empty spot
+        elif defending_unit is None and self.validate_movement_direction(coords, attacking_unit):
+
+            # if the moving unit is an AI, a Firewall or a Program, make sure it isn't in combat
+            if attacking_unit.to_string()[1] == 'A' or attacking_unit.to_string()[1] == 'F' or attacking_unit.to_string()[1] == 'P':
+                if self.is_engaged_in_combat(coords.src, attacking_unit):
+                    return False
+
+            return True
+        
+        return False
+
+    def is_engaged_in_combat(self, src_coord: Coord, unit: UnitType) -> bool:
+
+        current_player: str = unit.to_string()[0]
+        if current_player == 'a':
+            enemy_player = 'd'
+        else:
+            enemy_player = 'a'
+
+        # make sure there are no enemies around the player
+        adjacent_spots = src_coord.iter_adjacent()
+        for i in adjacent_spots:
+            adjacent_unit = self.get(i)
+            if adjacent_unit is not None and adjacent_unit.to_string()[0] == enemy_player:
+                return True
+        return False
+
+    def validate_movement_direction(self, coords: CoordPair, unit: UnitType):
+        """Check if a player's chosen direction is compatible with the unit being used"""
+
+        direction: str = self.get_movement_direction(coords)
+
+        if direction == MovementDirection.Invalid:
+            return False
+
+        if direction == MovementDirection.Stay:
+            return True
+
+        if unit.to_string()[0] == 'a':
+            if unit.to_string()[1] == 'A' or unit.to_string()[1] == 'F' or unit.to_string()[1] == 'P':
+                if direction == MovementDirection.Left or direction == MovementDirection.Up:
+                    return True
+                else:
+                    return False
+            return True
+        else:
+            if unit.to_string()[1] == 'A' or unit.to_string()[1] == 'F' or unit.to_string()[1] == 'P':
+                if direction == MovementDirection.Right or direction == MovementDirection.Down:
+                    return True
+                else:
+                    return False
+            return True
+
+
+    def get_movement_direction(self, coords : CoordPair) -> MovementDirection:
+        """Check what direction the coordinate pair is moving"""
+
+        src_coord = coords.src.to_string()
+        dst_coord = coords.dst.to_string()
+
+        # 'moving' to the same spot is valid for self-destruction
+        if src_coord == dst_coord:
+            return MovementDirection.Stay
+
+        # horizontal movement
+        elif src_coord[0] == dst_coord[0]:
+            if int(src_coord[1]) + 1 == int(dst_coord[1]):
+                return MovementDirection.Right
+            elif int(src_coord[1]) - 1 == int(dst_coord[1]):
+                return MovementDirection.Left
+            return MovementDirection.Invalid
+
+        # vertical movement
+        elif src_coord[1] == dst_coord[1]:
+            if ord(src_coord[0]) + 1 == ord(dst_coord[0]):
+                return MovementDirection.Down
+            elif ord(src_coord[0]) - 1 == ord(dst_coord[0]):
+                return MovementDirection.Up
+            return MovementDirection.Invalid
+
+        return MovementDirection.Invalid
+
+            
+
+    def perform_move(self, coords : CoordPair) -> Tuple[bool,str]:
+        """Validate and perform a move expressed as a CoordPair. """
         if self.is_valid_move(coords):
-            self.set(coords.dst,self.get(coords.src))
-            self.set(coords.src,None)
-            evals = self.evaluate_states()  # Add a method to evaluate states
-            return (True,"" , evals)
-        return (False,"invalid move", 0)
+            # Let a unit attack, repair another unit or self-destruct
+            if(self.get(coords.dst) is not None):
+                # unit self-destructs
+                if(self.get(coords.src)==self.get(coords.dst)):
+                    self.self_destruct(coords.src)
+                    return (True,"")
+                    # a unit attacks another unit
+                elif(self.get(coords.dst).to_string()[0]!=self.get(coords.src).to_string()[0]):
+                    if(self.get(coords.src).is_alive and self.get(coords.dst).is_alive):
+                        self.attack_unit(coords)
+                        return (True,"")
+                    # a unit repairs another unit
+                elif(self.get(coords.dst).to_string()[0]==self.get(coords.src).to_string()[0]):
+                    if(self.get(coords.src).is_alive and self.get(coords.dst).is_alive):
+                        self.repair_unit(coords)
+                        return (True,"")
+              #unit goes to empty adjacent coordinate      
+            elif(self.get(coords.dst) is None):
+                self.set(coords.dst,self.get(coords.src))
+                self.set(coords.src,None)
+                return (True,"")
+        return (False,"invalid move")
+    
+    def self_destruct(self,coord: Coord):
+        coordinates=coord.iter_range(1)
+        for adjCoord in coordinates:
+            if self.is_valid_coord(adjCoord):
+                unit_at_adj = self.get(adjCoord)
+                if unit_at_adj is not None:
+                    unit_at_adj.mod_health(-2)
+                    if not unit_at_adj.is_alive():
+                        self.remove_dead(adjCoord)
+        self.get(coord).mod_health(-9)
+        self.remove_dead(coord)
+
+    def attack_unit(self,coords:CoordPair):
+        damageAmount=self.get(coords.src).damage_amount(self.get(coords.dst))
+        self.get(coords.src).mod_health(-damageAmount)
+        self.get(coords.dst).mod_health(-damageAmount)
+        #remove unit if health reaches 0
+        if(self.get(coords.src).health==0):
+            self.remove_dead(coords.src)
+        if(self.get(coords.dst).health==0):
+            self.remove_dead(coords.dst)
+
+    def repair_unit(self,coords:CoordPair):
+        if(self.get(coords.src).health>self.get(coords.dst).health):
+            repairAmount=self.get(coords.src).repair_amount(self.get(coords.dst))
+            self.get(coords.dst).mod_health(repairAmount)
 
     def next_turn(self):
         """Transitions game to the next turn."""
@@ -374,6 +530,7 @@ class Game:
         dim = self.options.dim
         output = ""
         output += f"Next player: {self.next_player.name}\n"
+
         output += f"Turns played: {self.turns_played}\n"
         coord = Coord()
         output += "\n   "
@@ -592,7 +749,10 @@ def print_cumulative_info(player):
     print()
     print(f"Average Branching Factor: {cumulative_info[player]['Average Branching Factor']:.1f}")
 
+    
+
 def main():
+
     # parse command line arguments
     parser = argparse.ArgumentParser(
         prog='ai_wargame',
@@ -677,7 +837,9 @@ def main():
         print(game)
         winner = game.has_winner()
         if winner is not None:
-            output_file.write(f"{winner.name} wins!")
+            print("The winner is "+winner.name+ " in "+str(game.turns_played)+ " turns!")
+            with open(output_file_name, "a") as output_file:
+                output_file.write("\n"+f"{winner.name} wins in "+ str(game.turns_played)+ " turns!")
             break
         if game.options.game_type == GameType.AttackerVsDefender:
             game.human_turn()
@@ -691,16 +853,17 @@ def main():
 
 
             #action information to the trace file
+            action_description = f"move from {move.src} to {move.dst}" if move is not None else "No valid move"
             with open(output_file_name, "a") as output_file:
                 output_file.write(f"Turn #{game.turns_played}\n")
-                output_file.write(f"Player {player.name}: Action: {move}\n")
+                output_file.write(f"Player {player.name}: Action: {action_description}\n")
 
             if move is not None:
                 game.post_move_to_broker(move)
-            else:
-                print("Computer doesn't know what to do!!!")
-                exit(1)
 
+        with open(output_file_name, "a") as output_file:
+            output_file.write("New Configuration:\n")
+            output_file.write(str(game)) 
 
 
 ##############################################################################################################
