@@ -40,6 +40,12 @@ class Player(Enum):
             return Player.Defender
         else:
             return Player.Attacker
+        
+    def current(self) -> Player:
+        if self is Player.Attacker:
+            return Player.Attacker
+        else:
+            return Player.Defender
 
 class GameType(Enum):
     AttackerVsDefender = 0
@@ -287,6 +293,8 @@ class Game:
     stats: Stats = field(default_factory=Stats)
     _attacker_has_ai : bool = True
     _defender_has_ai : bool = True
+    move_performed : str = ""
+    move_coordinates : CoordPair | None = None
     initial_board_configuration: str = ""  # Define initial_board_configuration as a class attribute
 
     def __post_init__(self):
@@ -474,6 +482,7 @@ class Game:
             if(self.get(coords.dst) is not None):
                 # unit self-destructs
                 if(self.get(coords.src)==self.get(coords.dst)):
+                    self.move_performed="self destruct"
                     self.self_destruct(coords.src)
                     return (True,"")
                     # a unit attacks another unit
@@ -488,6 +497,7 @@ class Game:
                         return (True,"")
               #unit goes to empty adjacent coordinate      
             elif(self.get(coords.dst) is None):
+                self.move_performed="moved to"
                 self.set(coords.dst,self.get(coords.src))
                 self.set(coords.src,None)
                 return (True,"")
@@ -497,7 +507,7 @@ class Game:
         coordinates=coord.iter_range(1)
         for adjCoord in coordinates:
             if self.is_valid_coord(adjCoord):
-                unit_at_adj = self.get(adjCoord)
+                unit_at_adj= self.get(adjCoord)
                 if unit_at_adj is not None:
                     unit_at_adj.mod_health(-2)
                     if not unit_at_adj.is_alive():
@@ -506,6 +516,7 @@ class Game:
         self.remove_dead(coord)
 
     def attack_unit(self,coords:CoordPair):
+        self.move_performed="attacked"
         damageAmount=self.get(coords.src).damage_amount(self.get(coords.dst))
         self.get(coords.src).mod_health(-damageAmount)
         self.get(coords.dst).mod_health(-damageAmount)
@@ -516,6 +527,7 @@ class Game:
             self.remove_dead(coords.dst)
 
     def repair_unit(self,coords:CoordPair):
+        self.move_performed="repaired"
         if(self.get(coords.src).health>self.get(coords.dst).health):
             repairAmount=self.get(coords.src).repair_amount(self.get(coords.dst))
             self.get(coords.dst).mod_health(repairAmount)
@@ -530,7 +542,6 @@ class Game:
         dim = self.options.dim
         output = ""
         output += f"Next player: {self.next_player.name}\n"
-
         output += f"Turns played: {self.turns_played}\n"
         coord = Coord()
         output += "\n   "
@@ -586,6 +597,7 @@ class Game:
                     print(result)
                     if success:
                         self.next_turn()
+                        self.move_coordinates=mv
                         break
                 sleep(0.1)
         else:
@@ -596,6 +608,7 @@ class Game:
                     print(f"Player {self.next_player.name}: ",end='')
                     print(result)
                     self.next_turn()
+                    self.move_coordinates=mv
                     break
                 else:
                     print("The move is not valid! Try again.")
@@ -808,8 +821,11 @@ def main():
 
 # Track game parameters
     is_alpha_beta = "true" if options.alpha_beta else "false"
+
+    timeoutInput=input("What maximum amount of time would you like?") #not gonna use it for D1
     timeout = str(options.max_time)
     
+    options.max_turns=int(input("What is the maximum number of turns you want? \n"))
     max_turns = str(options.max_turns)
 
     # Generate the output file name
@@ -826,7 +842,7 @@ def main():
         output_file.write(f"Player 2: {'AI' if game_type != GameType.AttackerVsDefender else 'H'}\n")
         output_file.write("\nInitial Configuration:\n")
         # Write the initial board configuration to the output file
-        output_file.write(game.initial_board_configuration)
+        output_file.write(str(game))
 
 
 
@@ -844,6 +860,26 @@ def main():
             break
         if game.options.game_type == GameType.AttackerVsDefender:
             game.human_turn()
+            if(game.move_coordinates is not None):
+                if(game.move_performed=="moved to"):
+                    action_description = f"moved from {game.move_coordinates.src} to {game.move_coordinates.dst}"
+                elif(game.move_performed=="self destruct"):
+                    action_description = f"unit at {game.move_coordinates.src} self destructed."
+                elif(game.move_performed=="attacked"):
+                    action_description = f"unit at {game.move_coordinates.src} attacked unit at {game.move_coordinates.dst}"
+                elif(game.move_performed=="repaired"):
+                    action_description = f"unit at {game.move_coordinates.dst} repaired unit at {game.move_coordinates.dst}"
+            else:
+                action_description = "Move not valid"
+            with open(output_file_name, "a") as output_file:
+                output_file.write(f"Turn #{game.turns_played}\n")
+                if(game.next_player.name=="Attacker"):
+                    output_file.write(f"Player Defender: Action: {action_description}\n")
+                else:
+                    output_file.write(f"Player Attacker: Action: {action_description}\n")
+            with open(output_file_name, "a") as output_file:
+                output_file.write("New Configuration:\n")
+                output_file.write(str(game)) 
         elif game.options.game_type == GameType.AttackerVsComp and game.next_player == Player.Attacker:
             game.human_turn()
         elif game.options.game_type == GameType.CompVsDefender and game.next_player == Player.Defender:
@@ -854,17 +890,11 @@ def main():
 
 
             #action information to the trace file
-            action_description = f"move from {move.src} to {move.dst}" if move is not None else "No valid move"
-            with open(output_file_name, "a") as output_file:
-                output_file.write(f"Turn #{game.turns_played}\n")
-                output_file.write(f"Player {player.name}: Action: {action_description}\n")
+            
 
             if move is not None:
                 game.post_move_to_broker(move)
 
-        with open(output_file_name, "a") as output_file:
-            output_file.write("New Configuration:\n")
-            output_file.write(str(game)) 
 
 
 ##############################################################################################################
