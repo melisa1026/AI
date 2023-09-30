@@ -809,6 +809,7 @@ def main():
 # Track game parameters
     is_alpha_beta = "true" if options.alpha_beta else "false"
     timeout = str(options.max_time)
+    
     max_turns = str(options.max_turns)
 
     # Generate the output file name
