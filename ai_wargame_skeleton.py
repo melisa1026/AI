@@ -665,14 +665,21 @@ class Game:
         move_candidates = list(self.move_candidates())
         random.shuffle(move_candidates)
         if len(move_candidates) > 0:
-            return (0, move_candidates[0], 1)
+            return (0, move_candidates[0], 1, 1)
         else:
             return (0, move_candidates[0], 1, evals)
 
     def suggest_move(self) -> CoordPair | None:
         """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
         start_time = datetime.now()
+
         (score, move, avg_depth, evals) = self.random_move()
+
+        if self.next_player == Player.Attacker:
+            self.min_value(0)
+        else:
+            self.max_value(0)
+
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
         self.stats.total_seconds += elapsed_seconds
         self.stats.update_cumulative_evals(avg_depth, evals)  # Update cumulative evals
@@ -696,6 +703,44 @@ class Game:
         print()
         print(f"Average branching factor: {branching_factor:.1f}")
         return move
+
+    # TODO: include max depth. I'm currently just making it 4
+    # TODO: evaluate heuristic value at node
+    def max_value(self, depth):
+
+        if depth == 4:
+            return 0
+
+        value = -100000;
+
+        move_candidate = self.move_candidates()
+        for move in move_candidate:
+            new_game = self.clone()
+            new_game.perform_move(move)
+            new_value = new_game.min_value(depth+1)
+
+        print('max')
+
+        return 0
+
+    def min_value(self, depth):
+
+        if depth == 4:
+            return 0
+
+        value = 100000;
+
+        move_candidate = self.move_candidates()
+        for move in move_candidate:
+            new_game = self.clone()
+            new_game.perform_move(move)
+            new_value = new_game.max_value(depth + 1)
+
+        print('min')
+
+        return 0
+
+
 
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
@@ -772,7 +817,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--max_depth', type=int, help='maximum search depth')
     parser.add_argument('--max_time', type=float, help='maximum search time')
-    parser.add_argument('--game_type', type=str, default="manual", help='game type: auto|attacker|defender|manual')
+    parser.add_argument('--game_type', type=str, default="attacker", help='game type: auto|attacker|defender|manual')
     parser.add_argument('--broker', type=str, help='play via a game broker')
     args = parser.parse_args()
 
