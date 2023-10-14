@@ -8,6 +8,7 @@ from time import sleep
 from typing import Tuple, TypeVar, Type, Iterable, ClassVar, Dict
 import random
 import requests
+import json
 
 # maximum and minimum values for our heuristic scores (usually represents an end of game condition)
 MAX_HEURISTIC_SCORE = 2000000000
@@ -676,9 +677,9 @@ class Game:
         (score, move, avg_depth, evals) = self.random_move()
 
         if self.next_player == Player.Attacker:
-            self.min_value(0)
+            self.min_value(0, -100000, 100000, {})
         else:
-            self.max_value(0)
+            self.max_value(0, -100000, 100000, {})
 
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
         self.stats.total_seconds += elapsed_seconds
@@ -706,40 +707,85 @@ class Game:
 
     # TODO: include max depth. I'm currently just making it 4
     # TODO: evaluate heuristic value at node
-    def max_value(self, depth):
+    # TODO: use the game configurations to check if alpha-beta is on
+    # TODO: save the current move
+    def max_value(self, depth, alpha, beta, all_values: dict):
 
         if depth == 4:
-            return 0
+            value = self.get_random_heuristic_value()
+            all_values['node'] = value
+            return value
 
-        value = -100000;
+        all_values['nodes'] = []    # TODO: remove
+
+        value = -100000
 
         move_candidate = self.move_candidates()
         for move in move_candidate:
+
+            new_node: dict = {}     # TODO: remove
+            all_values['nodes'].append(new_node)    # TODO: remove
+
             new_game = self.clone()
             new_game.perform_move(move)
-            new_value = new_game.min_value(depth+1)
+            new_value = new_game.min_value(depth+1, alpha, beta, new_node)  # TODO: remove new node
+            if new_value > value:
+                value = new_value
+                # save the move
+            # if alpha-beta pruning is on:
+            if new_value >= beta:
+                break
+            if new_value > alpha:
+                alpha = new_value
 
-        print('max')
+        if depth == 0:
+            with open("json_dump.jso", 'w') as json_file:
+                json.dump(all_values, json_file, indent=4)
+                print('done')
+
+        all_values[value] = all_values['nodes'] # TODO: remove
+        del all_values['nodes'] # TODO: remove
 
         return 0
 
-    def min_value(self, depth):
+    def min_value(self, depth, alpha, beta, all_values: dict):
 
         if depth == 4:
-            return 0
+            value = self.get_random_heuristic_value()
+            print('node value: ' + value)
+            return value
 
-        value = 100000;
+        all_values['nodes'] = []    # TODO: remove
+
+        value = 100000
 
         move_candidate = self.move_candidates()
         for move in move_candidate:
+
+            new_node: dict = {}     # TODO: remove
+            all_values['nodes'].append(new_node)    # TODO: remove
+
             new_game = self.clone()
             new_game.perform_move(move)
-            new_value = new_game.max_value(depth + 1)
+            new_value = new_game.max_value(depth + 1, alpha, beta, new_node)    # TODO: remove new node
+            if new_value < value:
+                value = new_value
+                # save the move
+            # if alpha-beta pruning is on:
+            if new_value <= alpha:
+                break
+            if new_value < beta:
+                beta = new_value
 
-        print('min')
+        all_values[value] = all_values['nodes']  # TODO: remove
+        del all_values['nodes']  # TODO: remove
 
-        return 0
+        return value
 
+    # this is just a placeholder until I have the real heuristic functions
+    @staticmethod
+    def get_random_heuristic_value():
+        return random.randint(0, 10000)
 
 
     def post_move_to_broker(self, move: CoordPair):
