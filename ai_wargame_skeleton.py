@@ -622,6 +622,12 @@ class Game:
                 print(f"Computer {self.next_player.name}: ",end='')
                 print(result)
                 self.next_turn()
+        else:
+            # End the game and declare the human player as the winner
+            print(f"Invalid move by {self.next_player.name}. You win!")
+            winner = Player.Attacker if self.next_player == Player.Defender else Player.Defender
+            print(f"The winner is {winner.name}!")
+            return None
         return mv
 
     def player_units(self, player: Player) -> Iterable[Tuple[Coord,Unit]]:
@@ -773,6 +779,7 @@ def main():
     parser.add_argument('--max_time', type=float, help='maximum search time')
     parser.add_argument('--game_type', type=str, default="manual", help='game type: auto|attacker|defender|manual')
     parser.add_argument('--broker', type=str, help='play via a game broker')
+    parser.add_argument('--heuristic', type=str, default="heuristic1", help='heuristic to use: heuristic1|heuristic2|heuristic3')
     args = parser.parse_args()
 
     # parse the game type
@@ -803,7 +810,7 @@ def main():
         },
     }
     # set up game options
-    options = Options(game_type=game_type)
+    options = Options(game_type=game_type, heuristic= args.heuristic)
 
     # override class defaults via command line options
     if args.max_depth is not None:
