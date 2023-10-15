@@ -779,7 +779,7 @@ def main():
     parser.add_argument('--max_time', type=float, help='maximum search time')
     parser.add_argument('--game_type', type=str, default="manual", help='game type: auto|attacker|defender|manual')
     parser.add_argument('--broker', type=str, help='play via a game broker')
-    parser.add_argument('--heuristic', type=str, default="heuristic1", help='heuristic to use: heuristic1|heuristic2|heuristic3')
+    #parser.add_argument('--heuristic', type=str, default="heuristic1", help='heuristic to use: heuristic1|heuristic2|heuristic3')
     args = parser.parse_args()
 
     # parse the game type
@@ -810,13 +810,14 @@ def main():
         },
     }
     # set up game options
-    options = Options(game_type=game_type, heuristic= args.heuristic)
+    options = Options(game_type=game_type.AttackerVsDefender, heuristic= "heuristic1")
 
     # override class defaults via command line options
     if args.max_depth is not None:
         options.max_depth = args.max_depth
     if args.max_time is not None:
         options.max_time = args.max_time
+    options.alpha_beta = args.use_alpha_beta
     if args.broker is not None:
         options.broker = args.broker
 
@@ -851,10 +852,7 @@ def main():
         output_file.write(str(game))
 
 
-
-    
-
-    # the main game loop
+     # the main game loop
     while True:
         print()
         print(game)
@@ -906,4 +904,4 @@ def main():
 ##############################################################################################################
 
 if __name__ == '__main__':
-       game = main()
+  main()
