@@ -659,6 +659,18 @@ class Game:
                     yield move.clone()
             move.dst = src
             yield move.clone()
+    
+    def move_candidates_current_player(self) -> Iterable[CoordPair]:
+        """Generate valid move candidates for the next player."""
+        move = CoordPair()
+        for (src,_) in self.player_units:
+            move.src = src
+            for dst in src.iter_adjacent():
+                move.dst = dst
+                if self.is_valid_move(move):
+                    yield move.clone()
+            move.dst = src
+            yield move.clone()
 
     def random_move(self) -> Tuple[int, CoordPair | None, float, int]:
         """Returns a random move."""
@@ -751,7 +763,7 @@ class Game:
     def min_value(self, depth, alpha, beta, all_values: dict):
 
         if depth == 4:
-            value = self.get_random_heuristic_value()
+            value = self.get_heuristic_e0
             print('node value: ' + value)
             return value
 
@@ -781,6 +793,71 @@ class Game:
         del all_values['nodes']  # TODO: remove
 
         return value
+    
+    def get_heuristic_e0(self) -> int:
+        #e0 = (3VP1 + 3TP1 + 3FP1 + 3PP1 + 9999AIP1) − (3VP2 + 3TP2 + 3FP2 + 3PP2 + 9999AIP2)
+        player_1_units=self.player_units
+        player_2_units=self.player_units(self.next_player)
+
+        countV1=0
+        countV2=0
+        countT1=0
+        countT2=0
+        countF1=0
+        countF2=0
+        countP1=0
+        countP2=0
+        countAI1=0
+        countAI2=0
+
+        for unit in player_1_units:
+            match unit.to_string()[1]:
+                case "V":
+                    countV1+=1
+                case "T":
+                    countT1+=1
+                case "F":
+                    countF1+=1
+                case "P":
+                    countP1+=1
+                case "A":
+                    countAI1+=1
+        
+        for unit in player_2_units:
+            match unit.to_string()[1]:
+                case "V":
+                    countV2+=1
+                case "T":
+                    countT2+=1
+                case "F":
+                    countF2+=1
+                case "P":
+                    countP2+=1
+                case "A":
+                    countAI2+=1
+
+        e0=(3*countV1 + 3*countT1 + 3*countF1 + 3*countP1 + 9999*countAI1) - (3*countV2 + 3*countT2 + 3*countF2 + 3*countP2 + 9999*countAI2)
+        return e0
+
+    def get_heuristic_e1(self) -> int:
+        #e1=(nb of moves available for player 1) - (nb of moves avaliable for player 2)
+
+        moves_player_1=self.move_candidates_current_player
+        moves_player_2=self.move_candidates
+
+        count_moves_player_1=0
+        count_moves_player_2=0
+
+        for move in moves_player_1:
+            count_moves_player_1+=1
+        
+        for move in moves_player_2:
+            count_moves_player_2+=1
+        
+        e1=count_moves_player_1-moves_player_2
+        return e1
+        
+        
 
     # this is just a placeholder until I have the real heuristic functions
     @staticmethod
@@ -980,11 +1057,6 @@ def main():
             move = game.computer_turn()
 
 
-            #action information to the trace file
-            
-
-            if move is not None:
-                game.post_move_to_broker(move)
 
 
 
