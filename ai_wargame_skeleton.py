@@ -717,14 +717,13 @@ class Game:
         print(f"Average branching factor: {branching_factor:.1f}")
         return move
 
-    # TODO: include max depth. I'm currently just making it 4
-    # TODO: evaluate heuristic value at node
+    # TODO: lower depth when time is running low
     # TODO: use the game configurations to check if alpha-beta is on
     # TODO: save the current move
     def max_value(self, depth, alpha, beta, all_values: dict):
 
         if depth == 4:
-            value = self.get_random_heuristic_value()
+            value = self.get_heuristic_e0()
             all_values['node'] = value
             return value
 
@@ -758,12 +757,12 @@ class Game:
         all_values[value] = all_values['nodes'] # TODO: remove
         del all_values['nodes'] # TODO: remove
 
-        return 0
+        return value
 
     def min_value(self, depth, alpha, beta, all_values: dict):
 
         if depth == 4:
-            value = self.get_heuristic_e0
+            value = self.get_heuristic_e0()
             print('node value: ' + value)
             return value
 
@@ -793,10 +792,16 @@ class Game:
         del all_values['nodes']  # TODO: remove
 
         return value
+
+    def get_current_player(self) -> Player:
+        if self.next_player == Player.Attacker:
+            return Player.Defender
+        else:
+            return Player.Attacker
     
     def get_heuristic_e0(self) -> int:
         #e0 = (3VP1 + 3TP1 + 3FP1 + 3PP1 + 9999AIP1) − (3VP2 + 3TP2 + 3FP2 + 3PP2 + 9999AIP2)
-        player_1_units=self.player_units
+        player_1_units=self.player_units(self.get_current_player())
         player_2_units=self.player_units(self.next_player)
 
         countV1=0
@@ -811,7 +816,7 @@ class Game:
         countAI2=0
 
         for unit in player_1_units:
-            match unit.to_string()[1]:
+            match unit[1].to_string()[1]:
                 case "V":
                     countV1+=1
                 case "T":
@@ -822,9 +827,9 @@ class Game:
                     countP1+=1
                 case "A":
                     countAI1+=1
-        
+
         for unit in player_2_units:
-            match unit.to_string()[1]:
+            match unit[1].to_string()[1]:
                 case "V":
                     countV2+=1
                 case "T":
@@ -837,6 +842,7 @@ class Game:
                     countAI2+=1
 
         e0=(3*countV1 + 3*countT1 + 3*countF1 + 3*countP1 + 9999*countAI1) - (3*countV2 + 3*countT2 + 3*countF2 + 3*countP2 + 9999*countAI2)
+        print(e0)
         return e0
 
     def get_heuristic_e1(self) -> int:
