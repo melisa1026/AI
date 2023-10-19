@@ -956,6 +956,7 @@ def main():
     parser.add_argument('--max_time', type=float, help='maximum search time')
     parser.add_argument('--game_type', type=str, default="attacker", help='game type: auto|attacker|defender|manual')
     parser.add_argument('--broker', type=str, help='play via a game broker')
+    parser.add_argument('--heuristic', type=str, default='e0', help='heuristic function: e0|e1|e2')
     args = parser.parse_args()
 
     # parse the game type
@@ -968,7 +969,12 @@ def main():
     else:
         game_type = GameType.CompVsComp
 
-
+# Create a dictionary to map heuristic names to heuristic functions
+    heuristic_functions = {
+        'e0': AIPlayer.get_heuristic_e0,
+        'e1': AIPlayer.get_heuristic_e1,
+        'e2': AIPlayer.get_heuristic_e2,  
+    }
 
   # Create a dictionary to store cumulative information for each player
     cumulative_info = {
@@ -1070,8 +1076,22 @@ def main():
             player = game.next_player
             move = game.computer_turn()
 
+  # selecting the heuristic
+  if args.heuristic in heuristic_functions:
+        heuristic_function = heuristic_functions[args.heuristic]
+    else:
+        print(f"Invalid heuristic: {args.heuristic}. Using the default heuristic e0.")
+        heuristic_function = AIPlayer.get_heuristic_e0
 
-
+    # Create the AIPlayer with the selected heuristic
+    ai_player = AIPlayer(
+        heuristic_function=heuristic_function,
+        max_depth=args.max_depth,
+        timeout=args.max_time,
+        alpha_beta=args.alpha_beta,
+        play_mode="AI",
+        heuristic_name=args.heuristic
+    )
 
 
 ##############################################################################################################
