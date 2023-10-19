@@ -1,7 +1,7 @@
 from __future__ import annotations
 import argparse
 import copy
-from datetime import datetime
+from datetime import datetime, time
 from enum import Enum
 from dataclasses import dataclass, field
 from time import sleep
@@ -672,66 +672,72 @@ class Game:
             move.dst = src
             yield move.clone()
 
-    def random_move(self) -> Tuple[int, CoordPair | None, float, int]:
+    def random_move(self) -> Tuple[int, CoordPair | None, int]:
         """Returns a random move."""
         evals = 0 
         move_candidates = list(self.move_candidates())
         random.shuffle(move_candidates)
         if len(move_candidates) > 0:
-            return (0, move_candidates[0], 1, 1)
+            return (0, move_candidates[0], 1)
         else:
-            return (0, move_candidates[0], 1, evals)
+            return (0, move_candidates[0], evals)
 
     def suggest_move(self) -> CoordPair | None:
-        """Suggest the next move using minimax alpha beta. TODO: REPLACE RANDOM_MOVE WITH PROPER GAME LOGIC!!!"""
+        """Suggest the next move using minimax alpha beta."""
         start_time = datetime.now()
 
-        (score, move, avg_depth, evals) = self.random_move()
+        previous_cumulative_evals = self.stats.cumulative_evals
 
-        if self.next_player == Player.Attacker:
-            self.min_value(0, -100000, 100000, {})
-        else:
-            self.max_value(0, -100000, 100000, {})
+        (score, move) = self.min_value(0, -100000, 100000, {})
+
+        new_cumulative_evals = self.stats.cumulative_evals
+        turn_evals = new_cumulative_evals - previous_cumulative_evals
 
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
         self.stats.total_seconds += elapsed_seconds
-        self.stats.update_cumulative_evals(avg_depth, evals)  # Update cumulative evals
-        percentages = self.stats.get_percentage_evals_by_depth()  # Get percentage evals by depth
-        branching_factor = evals / max(1, self.turns_played)  # Calculate branching factor
+        branching_factor = turn_evals / max(1, self.turns_played)  # Calculate branching factor
         print(f"Turn #{self.turns_played}")
-        print(f"Player {self.next_player.name}:", end=' ')
+        print(f"Player: {self.next_player.name}:", end=' ')
         print(f"Action: {move}" if move else "No valid moves")
         print(f"Time for this action: {elapsed_seconds:.2f} sec")
         print(f"Heuristic score: {score}")
         print(f"New Configuration:")
-        print(self)
-        print(f"Cumulative evals: {self.stats.cumulative_evals/1e6:.2f}M")
+        print(self.to_string())
+        print("Cumulative evals: " + str(self.stats.cumulative_evals))
         print(f"Cumulative evals by depth:", end=' ')
         for depth, depth_evals in self.stats.evals_by_depth.items():
-         print(f"{depth}={depth_evals}", end=' ')
+            print(f"{depth}={depth_evals}", end=' ')
         print()
         print(f"Cumulative % evals by depth:", end=' ')
-        for depth, percentage in percentages.items():
-         print(f"{depth}={percentage:.1f}%", end=' ')
-        print()
+        for depth, depth_evals in self.stats.evals_by_depth.items():
+            if self.stats.cumulative_evals != 0:
+                print(f"{depth}={int(depth_evals/self.stats.cumulative_evals * 100)}%", end=' ')
+                print()
         print(f"Average branching factor: {branching_factor:.1f}")
         return move
 
+    # TODO: for me (Meli)
     # TODO: lower depth when time is running low
-    # TODO: use the game configurations to check if alpha-beta is on
-    # TODO: save the current move
-    def max_value(self, depth, alpha, beta, all_values: dict):
+
+    # TODO: game arguments:
+    # TODO: choose a heuristic (e0, e1 or e2) based on the game arguments
+    # TODO: check if alpha-beta is on with game arguments
+
+    def max_value(self, depth, alpha, beta, all_values: dict) -> Tuple[int, CoordPair | None]:
+
+        self.stats.update_cumulative_evals(depth, 1)
 
         if depth == 4:
             value = self.get_heuristic_e0()
             all_values['node'] = value
-            return value
+            return [value, None]
 
         all_values['nodes'] = []    # TODO: remove
 
         value = -100000
 
         move_candidate = self.move_candidates()
+        best_move = None
         for move in move_candidate:
 
             new_node: dict = {}     # TODO: remove
@@ -739,10 +745,10 @@ class Game:
 
             new_game = self.clone()
             new_game.perform_move(move)
-            new_value = new_game.min_value(depth+1, alpha, beta, new_node)  # TODO: remove new node
+            new_value = (new_game.min_value(depth+1, alpha, beta, new_node))[0]  # TODO: remove new node
             if new_value > value:
                 value = new_value
-                # save the move
+                best_move = move
             # if alpha-beta pruning is on:
             if new_value >= beta:
                 break
@@ -752,25 +758,26 @@ class Game:
         if depth == 0:
             with open("json_dump.jso", 'w') as json_file:
                 json.dump(all_values, json_file, indent=4)
-                print('done')
 
         all_values[value] = all_values['nodes'] # TODO: remove
         del all_values['nodes'] # TODO: remove
 
-        return value
+        return [value, best_move]
 
-    def min_value(self, depth, alpha, beta, all_values: dict):
+    def min_value(self, depth, alpha, beta, all_values: dict) -> Tuple[int, CoordPair | None]:
+
+        self.stats.update_cumulative_evals(depth, 1)
 
         if depth == 4:
             value = self.get_heuristic_e0()
-            print('node value: ' + value)
-            return value
+            return [value, None]
 
         all_values['nodes'] = []    # TODO: remove
 
         value = 100000
 
         move_candidate = self.move_candidates()
+        best_move = None
         for move in move_candidate:
 
             new_node: dict = {}     # TODO: remove
@@ -778,10 +785,10 @@ class Game:
 
             new_game = self.clone()
             new_game.perform_move(move)
-            new_value = new_game.max_value(depth + 1, alpha, beta, new_node)    # TODO: remove new node
+            new_value = (new_game.max_value(depth + 1, alpha, beta, new_node))[0]    # TODO: remove new node
             if new_value < value:
                 value = new_value
-                # save the move
+                best_move = move
             # if alpha-beta pruning is on:
             if new_value <= alpha:
                 break
@@ -791,7 +798,7 @@ class Game:
         all_values[value] = all_values['nodes']  # TODO: remove
         del all_values['nodes']  # TODO: remove
 
-        return value
+        return [value, best_move]
 
     def get_current_player(self) -> Player:
         if self.next_player == Player.Attacker:
@@ -800,6 +807,7 @@ class Game:
             return Player.Attacker
     
     def get_heuristic_e0(self) -> int:
+
         #e0 = (3VP1 + 3TP1 + 3FP1 + 3PP1 + 9999AIP1) − (3VP2 + 3TP2 + 3FP2 + 3PP2 + 9999AIP2)
         player_1_units=self.player_units(self.get_current_player())
         player_2_units=self.player_units(self.next_player)
@@ -842,10 +850,10 @@ class Game:
                     countAI2+=1
 
         e0=(3*countV1 + 3*countT1 + 3*countF1 + 3*countP1 + 9999*countAI1) - (3*countV2 + 3*countT2 + 3*countF2 + 3*countP2 + 9999*countAI2)
-        print(e0)
         return e0
 
     def get_heuristic_e1(self) -> int:
+
         #e1=(nb of moves available for player 1) - (nb of moves avaliable for player 2)
 
         moves_player_1=self.move_candidates_current_player
