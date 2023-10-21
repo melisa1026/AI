@@ -957,7 +957,6 @@ def main():
     parser.add_argument('--max_time', type=float, help='maximum search time')
     parser.add_argument('--game_type', type=str, default="attacker", help='game type: auto|attacker|defender|manual')
     parser.add_argument('--broker', type=str, help='play via a game broker')
-    parser.add_argument('--heuristic', type=str, default='e0', help='heuristic function: e0|e1|e2')
     args = parser.parse_args()
 
     # parse the game type
