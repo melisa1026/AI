@@ -755,8 +755,6 @@ class AIPlayer:
 
             new_game = self.clone()
             new_game.perform_move(move)
-            # Validate the move before continuing
-            if new_game.is_valid_move(move):
             new_value = (new_game.min_value(depth+1, alpha, beta, new_node))[0]  # TODO: remove new node
             if new_value > value:
                 value = new_value
@@ -765,13 +763,7 @@ class AIPlayer:
             if new_value >= beta:
                 break
             if new_value > alpha:
-                alpha = new_value
-         
-         else:
-            # The move is invalid; you can take appropriate action here.
-            print("AI made an invalid move. It loses the game.")
-            # Exit the game or handle the loss in a way you prefer.
-
+                print('hi')
         
         if depth == 0:
             with open("json_dump.jso", 'w') as json_file:
