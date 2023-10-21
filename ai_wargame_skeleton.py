@@ -688,7 +688,7 @@ class Game:
 
         previous_cumulative_evals = self.stats.cumulative_evals
 
-        (score, move) = self.min_value(0, -100000, 100000, {})
+        (score, move) = self.min_value(0, -100000, 100000, {}, start_time)
 
         new_cumulative_evals = self.stats.cumulative_evals
         turn_evals = new_cumulative_evals - previous_cumulative_evals
@@ -716,7 +716,7 @@ class Game:
         print(f"Average branching factor: {branching_factor:.1f}")
         return move
 
-    
+
     # TODO: for me (Meli)
     # TODO: lower depth when time is running low
 
@@ -724,16 +724,18 @@ class Game:
     # TODO: choose a heuristic (e0, e1 or e2) based on the game arguments
     # TODO: check if alpha-beta is on with game arguments
 
-    def max_value(self, depth, alpha, beta, all_values: dict) -> Tuple[int, CoordPair | None]:
+    def max_value(self, depth, alpha, beta, all_values: dict, start_time) -> Tuple[int, CoordPair | None]:
 
         self.stats.update_cumulative_evals(depth, 1)
 
-        if depth == 4:
+        seconds_left = self.options.max_time - (datetime.now() - start_time).total_seconds()
+
+        if depth == 5 or (seconds_left < 0.3*self.options.max_time and depth > 2):
             value = self.get_heuristic_e0()
             all_values['node'] = value
             return [value, None]
 
-        all_values['nodes'] = []    # TODO: remove
+        all_values['nodes'] = []
 
         value = -100000
 
@@ -741,12 +743,12 @@ class Game:
         best_move = None
         for move in move_candidate:
 
-            new_node: dict = {}     # TODO: remove
-            all_values['nodes'].append(new_node)    # TODO: remove
+            new_node: dict = {}
+            all_values['nodes'].append(new_node)
 
             new_game = self.clone()
             new_game.perform_move(move)
-            new_value = (new_game.min_value(depth+1, alpha, beta, new_node))[0]  # TODO: remove new node
+            new_value = (new_game.min_value(depth+1, alpha, beta, new_node, start_time))[0]
             if new_value > value:
                 value = new_value
                 best_move = move
@@ -754,26 +756,28 @@ class Game:
             if new_value >= beta:
                 break
             if new_value > alpha:
-                print('hi')
+                alpha = new_value
         
         if depth == 0:
             with open("json_dump.jso", 'w') as json_file:
                 json.dump(all_values, json_file, indent=4)
 
-        all_values[value] = all_values['nodes'] # TODO: remove
-        del all_values['nodes'] # TODO: remove
+        all_values[value] = all_values['nodes']
+        del all_values['nodes']
 
         return [value, best_move]
 
-    def min_value(self, depth, alpha, beta, all_values: dict) -> Tuple[int, CoordPair | None]:
+    def min_value(self, depth, alpha, beta, all_values: dict, start_time) -> Tuple[int, CoordPair | None]:
 
         self.stats.update_cumulative_evals(depth, 1)
 
-        if depth == 4:
+
+        seconds_left = self.options.max_time - (datetime.now() - start_time).total_seconds()
+        if depth == 5 or (seconds_left < 0.3*self.options.max_time and depth > 2):
             value = self.get_heuristic_e0()
             return [value, None]
 
-        all_values['nodes'] = []    # TODO: remove
+        all_values['nodes'] = []
 
         value = 100000
 
@@ -781,12 +785,12 @@ class Game:
         best_move = None
         for move in move_candidate:
 
-            new_node: dict = {}     # TODO: remove
-            all_values['nodes'].append(new_node)    # TODO: remove
+            new_node: dict = {}
+            all_values['nodes'].append(new_node)
 
             new_game = self.clone()
             new_game.perform_move(move)
-            new_value = (new_game.max_value(depth + 1, alpha, beta, new_node))[0]    # TODO: remove new node
+            new_value = (new_game.max_value(depth + 1, alpha, beta, new_node, start_time))[0]
             if new_value < value:
                 value = new_value
                 best_move = move
@@ -796,8 +800,8 @@ class Game:
             if new_value < beta:
                 beta = new_value
 
-        all_values[value] = all_values['nodes']  # TODO: remove
-        del all_values['nodes']  # TODO: remove
+        all_values[value] = all_values['nodes']
+        del all_values['nodes']
 
         return [value, best_move]
 
@@ -857,8 +861,8 @@ class Game:
 
         #e1=(nb of moves available for player 1) - (nb of moves avaliable for player 2)
 
-        moves_player_1=self.move_candidates_current_player
-        moves_player_2=self.move_candidates
+        moves_player_1=self.move_candidates_current_player()
+        moves_player_2=self.move_candidates()
 
         count_moves_player_1=0
         count_moves_player_2=0
