@@ -715,15 +715,6 @@ class Game:
                 print()
         print(f"Average branching factor: {branching_factor:.1f}")
         return move
-        
-class AIPlayer:
-    def __init__(self, heuristic_function, max_depth, timeout, alpha_beta, play_mode, heuristic_name):
-        self.heuristic_function = heuristic_function
-        self.max_depth = max_depth
-        self.timeout = timeout
-        self.alpha_beta = alpha_beta
-        self.play_mode = play_mode
-        self.heuristic_name = heuristic_name
 
     
     # TODO: for me (Meli)
@@ -1080,16 +1071,7 @@ def main():
             player = game.next_player
             move = game.computer_turn()
 
-  # selecting the heuristic
-        ai_player = AIPlayer(
-        max_depth=args.max_depth,
-        timeout=args.max_time,
-        alpha_beta=args.alpha_beta,
-        play_mode="AI",
-        heuristic_name=args.heuristic)
 
-        # Get the selected heuristic function
-    selected_heuristic_function = ai_player.get_selected_heuristic_function()
 
 ##############################################################################################################
 
