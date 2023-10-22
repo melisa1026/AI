@@ -236,12 +236,12 @@ class Options:
     max_depth : int | None = 4
     min_depth : int | None = 2
     max_time : float | None = 5.0
-    game_type : GameType = GameType.AttackerVsDefender
-    alpha_beta : bool = True
+    game_type : GameType | None= GameType.AttackerVsDefender
+    alpha_beta : bool | None= True
     max_turns : int | None = 100
     randomize_moves : bool = True
     broker : str | None = None
-    heuristic_name: str | None = None  
+    heuristic_name: str | None = None
 
 ##############################################################################################################
 
@@ -661,9 +661,9 @@ class Game:
             yield move.clone()
     
     def move_candidates_current_player(self) -> Iterable[CoordPair]:
-        """Generate valid move candidates for the next player."""
+        """Generate valid move candidates for the current player."""
         move = CoordPair()
-        for (src,_) in self.player_units:
+        for (src,_) in self.player_units(self.get_current_player):
             move.src = src
             for dst in src.iter_adjacent():
                 move.dst = dst
@@ -876,9 +876,9 @@ class Game:
         e1=count_moves_player_1-moves_player_2
         return e1
     
+    #def get_heuristic_e2(self)-> int:
+        #   
 
-        
-        
 
     # this is just a placeholder until I have the real heuristic functions
     @staticmethod
@@ -955,6 +955,7 @@ def print_cumulative_info(player):
 
 def main():
 
+
     # parse command line arguments
     parser = argparse.ArgumentParser(
         prog='ai_wargame',
@@ -1008,13 +1009,36 @@ def main():
     game = Game(options=options)
 
 # Track game parameters
-    is_alpha_beta = "true" if options.alpha_beta else "false"
 
-    options.max_time=int(input("What maximum amount of time would you like?"))
+    options.max_time=int(input("What maximum amount of time would you like? \n"))
     timeout = str(options.max_time)
     
     options.max_turns=int(input("What is the maximum number of turns you want? \n"))
     max_turns = str(options.max_turns)
+
+    alpha_beta_input=input("Would you like alpha-beta to be on or off? \n")
+    if(alpha_beta_input=="on"):
+        options.alpha_beta=True
+    else:
+        options.alpha_beta=False
+
+    is_alpha_beta = "true" if options.alpha_beta else "false"
+
+    playMode=input("Which play mode would you like to play in? (H-H/H-AI/AI-H/AI-AI) \n")
+    match(playMode):
+        case "H-H":
+            options.game_type=GameType.AttackerVsDefender
+        case "H-AI":
+            options.game_type=GameType.AttackerVsComp
+        case "AI-H":
+            options.game_type=GameType.CompVsDefender
+        case "AI-AI":
+            options.game_type=GameType.CompVsComp
+
+    if(options.game_type!=GameType.AttackerVsDefender):
+        options.heuristic_name=input("Which heurisitic would you like to choose? (e0,e1,e2) \n")
+        options.max_depth=int(input("What max depth would you like? \n"))
+    
 
     # Generate the output file name
     output_file_name = f"gameTrace-{is_alpha_beta}-{timeout}-{max_turns}.txt"
@@ -1026,9 +1050,8 @@ def main():
         output_file.write(f"Timeout (seconds): {timeout}\n")
         output_file.write(f"Max Turns: {max_turns}\n")
         output_file.write(f"Alpha-Beta: {is_alpha_beta}\n")
-        output_file.write(f"Player 1: {'AI' if game_type != GameType.AttackerVsDefender else 'H'}\n")
-        output_file.write(f"Player 2: {'AI' if game_type != GameType.AttackerVsDefender else 'H'}\n")
-        output_file.write("\nInitial Configuration:\n")
+        output_file.write(f"Player 1: {'AI' if 'AI' in playMode else 'H'}\n")
+        output_file.write(f"Player 2: {'AI' if 'AI' in playMode else 'H'}\n")
         # Write the initial board configuration to the output file
         output_file.write(str(game))
 
@@ -1046,45 +1069,69 @@ def main():
             with open(output_file_name, "a") as output_file:
                 output_file.write("\n" + f"{winner.name} wins in " + str(game.turns_played) + " turns!")
             break
+
         if game.options.game_type == GameType.AttackerVsDefender:
-            if game.next_player == Player.Attacker:
-                game.human_turn()
+            game.human_turn()
+            if game.move_coordinates is not None:
+                if game.move_performed == "moved to":
+                    action_description = f"moved from {game.move_coordinates.src} to {game.move_coordinates.dst}"
+                elif game.move_performed == "self destruct":
+                    action_description = f"unit at {game.move_coordinates.src} self destructed."
+                elif game.move_performed == "attacked":
+                    action_description = f"unit at {game.move_coordinates.src} attacked unit at {game.move_coordinates.dst}"
+                elif game.move_performed == "repaired":
+                    action_description = f"unit at {game.move_coordinates.dst} repaired unit at {game.move_coordinates.dst}"
             else:
-                #choose heuristic (e0, e1, e2)
-                heuristic_choice = input(f"Player {game.next_player.name}, choose your heuristic (e0, e1, e2): ")
-                if heuristic_choice == "e0":
-                    game.evaluation_function = game.get_heuristic_e0
-                elif heuristic_choice == "e1":
-                    game.evaluation_function = game.get_heuristic_e1
+                action_description = "Move not valid"
+
+            with open(output_file_name, "a") as output_file:
+                output_file.write(f"Turn #{game.turns_played}\n")
+                if game.next_player.name == "Attacker":
+                    output_file.write(f"Player Defender: Action: {action_description}\n")
                 else:
-                    game.evaluation_function = game.get_random_heuristic_value
-                move = game.computer_turn()
-                if not game.is_valid_move(move):
-                    # If the move is invalid, declare the opposing player as the winner
-                    winner = game.get_opposing_player()
-                    print(f"Invalid move! {game.next_player.name} loses.")
-                    break
+                    output_file.write(f"Player Attacker: Action: {action_description}\n")
+
         elif game.options.game_type == GameType.AttackerVsComp and game.next_player == Player.Attacker:
             game.human_turn()
         elif game.options.game_type == GameType.CompVsDefender and game.next_player == Player.Defender:
             game.human_turn()
         else:
             player = game.next_player
-            heuristic_choice = input(f"Player {player.name}, choose your heuristic (e0, e1, e2): ")
-            if heuristic_choice == "e0":
-                game.evaluation_function = game.get_heuristic_e0
-            elif heuristic_choice == "e1":
-                game.evaluation_function = game.get_heuristic_e1
-            else:
-                game.evaluation_function = game.get_random_heuristic_value
+
+            # Measure the time for AI action
+            start_time = datetime.now()
             move = game.computer_turn()
-            if not game.is_valid_move(move):
-                # If the move is invalid, declare the opposing player as the winner
-                winner = game.get_opposing_player()
-                print(f"Invalid move! {player.name} loses.")
-                break
+            elapsed_seconds = (datetime.now() - start_time).total_seconds()
 
+            if move:
+                if game.options.alpha_beta:
+                    heuristic_score = game.get_heuristic_e0()  # Replace with your heuristic function
+                    print(f"Turn #{game.turns_played}")
+                    print(f"Player: {player.name}")
+                    print(f"Action: {move}")
+                    print(f"Time for this action: {elapsed_seconds:.2f} sec")
+                    print(f"Heuristic score: {heuristic_score}")
+                    print("New Configuration:")
+                    print(game)
 
+                    # Update cumulative information
+                    cumulative_info[player]["Cumulative Evals"] += 1
+                    depth = game.turns_played
+                    cumulative_info[player]["Cumulative Evals by Depth"][depth] = cumulative_info[player].get("Cumulative Evals by Depth", {}).get(depth, 0) + 1
+                    cumulative_info[player]["Average Branching Factor"] = cumulative_info[player]["Cumulative Evals"] / (depth + 1)
+                    total_evals = cumulative_info[player]["Cumulative Evals"]
+                    cumulative_info[player]["Cumulative % Evals by Depth"] = {
+                        k: v / total_evals * 100 for k, v in cumulative_info[player]["Cumulative Evals by Depth"].items()
+                    }
+
+                    # Print cumulative information
+                    print_cumulative_info(player)
+                else:
+                    print(f"Turn #{game.turns_played}")
+                    print(f"Player: {player.name}")
+                    print(f"Action: {move}")
+                    print("New Configuration:")
+                    print(game)
 
 
 
