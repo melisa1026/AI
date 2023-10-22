@@ -513,8 +513,9 @@ class Game:
                     unit_at_adj.mod_health(-2)
                     if not unit_at_adj.is_alive():
                         self.remove_dead(adjCoord)
-        self.get(coord).mod_health(-9)
-        self.remove_dead(coord)
+        if self.get(coord) is not None:
+            self.get(coord).mod_health(-9)
+            self.remove_dead(coord)
 
     def attack_unit(self,coords:CoordPair):
         self.move_performed="attacked"
@@ -617,6 +618,7 @@ class Game:
     def computer_turn(self) -> CoordPair | None:
         """Computer plays a move."""
         mv = self.suggest_move()
+        print('move: ' + str(mv))
         if mv is not None:
             (success,result) = self.perform_move(mv)
             if success:
