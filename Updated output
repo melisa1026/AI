@@ -1105,7 +1105,7 @@ def main():
 
             if move:
                 if game.options.alpha_beta:
-                    heuristic_score = game.get_heuristic_e0()  # Replace with your heuristic function
+                    heuristic_score = game.get_heuristic_e0() 
                     print(f"Turn #{game.turns_played}")
                     print(f"Player: {player.name}")
                     print(f"Action: {move}")
