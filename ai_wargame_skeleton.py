@@ -236,12 +236,12 @@ class Options:
     max_depth : int | None = 4
     min_depth : int | None = 2
     max_time : float | None = 5.0
-    game_type : GameType = GameType.AttackerVsDefender
-    alpha_beta : bool = True
+    game_type : GameType | None= GameType.AttackerVsDefender
+    alpha_beta : bool | None= True
     max_turns : int | None = 100
     randomize_moves : bool = True
     broker : str | None = None
-    heuristic_name: str | None = None  
+    heuristic_name: str | None = None
 
 ##############################################################################################################
 
@@ -661,9 +661,9 @@ class Game:
             yield move.clone()
     
     def move_candidates_current_player(self) -> Iterable[CoordPair]:
-        """Generate valid move candidates for the next player."""
+        """Generate valid move candidates for the current player."""
         move = CoordPair()
-        for (src,_) in self.player_units:
+        for (src,_) in self.player_units(self.get_current_player):
             move.src = src
             for dst in src.iter_adjacent():
                 move.dst = dst
@@ -875,8 +875,10 @@ class Game:
         
         e1=count_moves_player_1-moves_player_2
         return e1
-        
-        
+    
+    #def get_heuristic_e2(self)-> int:
+        #   
+
 
     # this is just a placeholder until I have the real heuristic functions
     @staticmethod
@@ -953,6 +955,7 @@ def print_cumulative_info(player):
 
 def main():
 
+
     # parse command line arguments
     parser = argparse.ArgumentParser(
         prog='ai_wargame',
@@ -1006,13 +1009,36 @@ def main():
     game = Game(options=options)
 
 # Track game parameters
-    is_alpha_beta = "true" if options.alpha_beta else "false"
 
-    timeoutInput=input("What maximum amount of time would you like?") #not gonna use it for D1
+    options.max_time=int(input("What maximum amount of time would you like? \n"))
     timeout = str(options.max_time)
     
     options.max_turns=int(input("What is the maximum number of turns you want? \n"))
     max_turns = str(options.max_turns)
+
+    alpha_beta_input=input("Would you like alpha-beta to be on or off? \n")
+    if(alpha_beta_input=="on"):
+        options.alpha_beta=True
+    else:
+        options.alpha_beta=False
+
+    is_alpha_beta = "true" if options.alpha_beta else "false"
+
+    playMode=input("Which play mode would you like to play in? (H-H/H-AI/AI-H/AI-AI) \n")
+    match(playMode):
+        case "H-H":
+            options.game_type=GameType.AttackerVsDefender
+        case "H-AI":
+            options.game_type=GameType.AttackerVsComp
+        case "AI-H":
+            options.game_type=GameType.CompVsDefender
+        case "AI-AI":
+            options.game_type=GameType.CompVsComp
+
+    if(options.game_type!=GameType.AttackerVsDefender):
+        options.heuristic_name=input("Which heurisitic would you like to choose? (e0,e1,e2) \n")
+        options.max_depth=int(input("What max depth would you like? \n"))
+    
 
     # Generate the output file name
     output_file_name = f"gameTrace-{is_alpha_beta}-{timeout}-{max_turns}.txt"

@@ -875,6 +875,8 @@ class Game:
         
         e1=count_moves_player_1-moves_player_2
         return e1
+    
+
         
         
 
@@ -1008,7 +1010,7 @@ def main():
 # Track game parameters
     is_alpha_beta = "true" if options.alpha_beta else "false"
 
-    timeoutInput=input("What maximum amount of time would you like?") #not gonna use it for D1
+    options.max_time=int(input("What maximum amount of time would you like?"))
     timeout = str(options.max_time)
     
     options.max_turns=int(input("What is the maximum number of turns you want? \n"))
