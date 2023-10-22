@@ -1050,8 +1050,8 @@ def main():
         output_file.write(f"Timeout (seconds): {timeout}\n")
         output_file.write(f"Max Turns: {max_turns}\n")
         output_file.write(f"Alpha-Beta: {is_alpha_beta}\n")
-        output_file.write(f"Player 1: {'AI' if game_type != GameType.AttackerVsDefender else 'H'}\n")
-        output_file.write(f"Player 2: {'AI' if game_type != GameType.AttackerVsDefender else 'H'}\n")
+        output_file.write(f"Player 1: {'AI' if 'AI' in playMode else 'H'}\n")
+        output_file.write(f"Player 2: {'AI' if 'AI' in playMode else 'H'}\n")
         output_file.write("\nInitial Configuration:\n")
         # Write the initial board configuration to the output file
         output_file.write(str(game))
@@ -1085,6 +1085,7 @@ def main():
                 action_description = "Move not valid"
             with open(output_file_name, "a") as output_file:
                 output_file.write(f"Turn #{game.turns_played}\n")
+                action_description = "Your action description here"
                 if(game.next_player.name=="Attacker"):
                     output_file.write(f"Player Defender: Action: {action_description}\n")
                 else:
