@@ -642,13 +642,12 @@ class Game:
         """Check if the game is over and returns winner"""
         if self.options.max_turns is not None and self.turns_played >= self.options.max_turns:
             return Player.Defender
-        elif self._attacker_has_ai:
+        if self._attacker_has_ai:
             if self._defender_has_ai:
                 return None
             else:
                 return Player.Attacker    
-        elif self._defender_has_ai:
-            return Player.Defender
+        return Player.Defender
 
     def move_candidates(self) -> Iterable[CoordPair]:
         """Generate valid move candidates for the next player."""
@@ -690,7 +689,10 @@ class Game:
 
         previous_cumulative_evals = self.stats.cumulative_evals
 
-        (score, move) = self.min_value(0, -100000, 100000, {}, start_time)
+        if(self.next_player==Player.Defender):
+            (score, move) = self.min_value(0, -100000, 100000, {}, start_time)
+        else:
+            (score, move) = self.max_value(0, -100000, 100000, {}, start_time)
 
         new_cumulative_evals = self.stats.cumulative_evals
         turn_evals = new_cumulative_evals - previous_cumulative_evals
@@ -719,22 +721,19 @@ class Game:
         return move
 
 
-    # TODO: for me (Meli)
-    # TODO: lower depth when time is running low
-
-    # TODO: game arguments:
-    # TODO: choose a heuristic (e0, e1 or e2) based on the game arguments
-    # TODO: check if alpha-beta is on with game arguments
-
     def max_value(self, depth, alpha, beta, all_values: dict, start_time) -> Tuple[int, CoordPair | None]:
 
         self.stats.update_cumulative_evals(depth, 1)
 
         seconds_left = self.options.max_time - (datetime.now() - start_time).total_seconds()
 
-        if depth == 5 or (seconds_left < 0.3*self.options.max_time and depth > 2):
-            value = self.get_heuristic_e0()
-            all_values['node'] = value
+        if depth == self.options.max_depth or (seconds_left < 0.3*self.options.max_time and depth > self.options.min_depth):
+            if(self.options.heuristic_name=="e0"):
+                value = self.get_heuristic_e0()
+            elif(self.options.heuristic_name=="e1"):
+                value = self.get_heuristic_e1()
+            elif(self.options.heuristic_name=="e2"):
+                value = self.get_heuristic_e2()
             return [value, None]
 
         all_values['nodes'] = []
@@ -755,10 +754,11 @@ class Game:
                 value = new_value
                 best_move = move
             # if alpha-beta pruning is on:
-            if new_value >= beta:
-                break
-            if new_value > alpha:
-                alpha = new_value
+            if(self.options.alpha_beta==True):
+                if new_value <= alpha:
+                    break
+                if new_value < beta:
+                    beta = new_value
         
         if depth == 0:
             with open("json_dump.jso", 'w') as json_file:
@@ -775,8 +775,13 @@ class Game:
 
 
         seconds_left = self.options.max_time - (datetime.now() - start_time).total_seconds()
-        if depth == 5 or (seconds_left < 0.3*self.options.max_time and depth > 2):
-            value = self.get_heuristic_e0()
+        if depth == self.options.max_depth or (seconds_left < 0.3*self.options.max_time and depth > self.options.min_depth):
+            if(self.options.heuristic_name=="e0"):
+                value = self.get_heuristic_e0()
+            elif(self.options.heuristic_name=="e1"):
+                value = self.get_heuristic_e1()
+            elif(self.options.heuristic_name=="e2"):
+                value = self.get_heuristic_e2()
             return [value, None]
 
         all_values['nodes'] = []
@@ -797,10 +802,11 @@ class Game:
                 value = new_value
                 best_move = move
             # if alpha-beta pruning is on:
-            if new_value <= alpha:
-                break
-            if new_value < beta:
-                beta = new_value
+            if(self.options.alpha_beta==True):
+                if new_value <= alpha:
+                    break
+                if new_value < beta:
+                    beta = new_value
 
         all_values[value] = all_values['nodes']
         del all_values['nodes']
@@ -875,19 +881,76 @@ class Game:
         for move in moves_player_2:
             count_moves_player_2+=1
         
-        e1=count_moves_player_1-moves_player_2
+        e1=count_moves_player_1-count_moves_player_2
         return e1
     
-    #def get_heuristic_e2(self)-> int:
-        #   
+    def get_heuristic_e2(self)-> int:
+        # Iterate over player's units
+        # for each unit if the unit's health is greater than 5 then add 2 points (unless its AI so add 50 points)
+        # else if the unit's health is less than 5 then minus 2 points (unless its AI so minus 50 points)
+        # Then for each unit iterate over the units adjacent to it
+        # If the unit has adversaries adjacent to it and can damage it then minus 5 points depending on the number of adversaries
+        # that can damage the unit
+        # else if the unit is only in combat (so cant move) then minus 3 points
+        # If the unit has friendlies adjacent to it and can repair it then add 5 points depending on the number of friendlies
+        # that can repair the unit else just add 3 points
+        # Do the above for each player's units then
+        # e2= player_1_points - player_2_points
 
+        player_1_units=self.player_units(self.get_current_player())
+        player_2_units=self.player_units(self.next_player)
 
-    # this is just a placeholder until I have the real heuristic functions
-    @staticmethod
-    def get_random_heuristic_value():
-        return random.randint(0, 10000)
-
-
+        player_1_points=0
+        player_2_points=0
+        for (coordinate,unit) in player_1_units:
+            if unit.health>5 and unit.to_string()[1]=="A":
+                player_1_points+=50
+            elif unit.health>5 and unit.to_string()[1]!="A":
+                player_1_points+=2
+            elif unit.health<5 and unit.to_string()[1]=="A":
+                player_1_points-=50
+            elif unit.health<5 and unit.to_string()[1]!="A":
+                player_1_points-=2
+            adjacent_units=coordinate.iter_adjacent()
+            for adjUnit in adjacent_units:
+                if(self.get(adjUnit) is not None):
+                    if self.get(adjUnit).to_string()[0] != unit.to_string()[0]:
+                        if(unit.damage_amount(self.get(adjUnit))>0):
+                            player_1_points-=5
+                        elif(unit.to_string()[1]=="A" or unit.to_string()[1]=="P" or unit.to_string()[1]=="F"):
+                            player_1_points-=3
+                    elif self.get(adjUnit).to_string()[0] == unit.to_string()[0]:
+                        if(unit.repair_amount(self.get(adjUnit))>0):
+                            player_1_points+=5
+                        else:
+                            player_1_points+=3
+        
+        for (coordinate,unit) in player_2_units:
+            if unit.health>5 and unit.to_string()[1]=="A":
+                player_2_points+=50
+            elif unit.health>5 and unit.to_string()[1]!="A":
+                player_2_points+=2
+            elif unit.health<5 and unit.to_string()[1]=="A":
+                player_2_points-=50
+            elif unit.health<5 and unit.to_string()[1]!="A":
+                player_2_points-=2
+            adjacent_units=coordinate.iter_adjacent()
+            for adjUnit in adjacent_units:
+                if(self.get(adjUnit) is not None):
+                    if self.get(adjUnit).to_string()[0] != unit.to_string()[0]:
+                        if(unit.damage_amount(self.get(adjUnit))>0):
+                            player_2_points-=5
+                        elif(unit.to_string()[1]=="A" or unit.to_string()[1]=="P" or unit.to_string()[1]=="F"):
+                            player_2_points-=3
+                    elif self.get(adjUnit).to_string()[0] == unit.to_string()[0]:
+                        if(unit.repair_amount(self.get(adjUnit))>0):
+                            player_2_points+=5
+                        else:
+                            player_2_points+=3
+        
+        e2= player_1_points-player_2_points
+        return e2
+                
     def post_move_to_broker(self, move: CoordPair):
         """Send a move to the game broker."""
         if self.options.broker is None:
@@ -940,20 +1003,6 @@ class Game:
 ##############################################################################################################
 
 cumulative_info = {}
-def print_cumulative_info(player):
-    print(f"Cumulative Information (Player {player.name} - {'AI' if player != Player.AttackerVsDefender else 'H'}):")
-    print(f"Cumulative Evals: {cumulative_info[player]['Cumulative Evals']/1e6:.2f}M")
-    print(f"Cumulative Evals by Depth:", end=' ')
-    for depth, depth_evals in cumulative_info[player]["Cumulative Evals by Depth"].items():
-        print(f"{depth}={depth_evals}", end=' ')
-    print()
-    print(f"Cumulative % Evals by Depth:", end=' ')
-    for depth, percentage in cumulative_info[player]["Cumulative % Evals by Depth"].items():
-        print(f"{depth}={percentage:.1f}%", end=' ')
-    print()
-    print(f"Average Branching Factor: {cumulative_info[player]['Average Branching Factor']:.1f}")
-
-    
 
 def main():
 
@@ -1052,15 +1101,23 @@ def main():
         output_file.write(f"Timeout (seconds): {timeout}\n")
         output_file.write(f"Max Turns: {max_turns}\n")
         output_file.write(f"Alpha-Beta: {is_alpha_beta}\n")
-        output_file.write(f"Player 1: {'AI' if 'AI' in playMode else 'H'}\n")
-        output_file.write(f"Player 2: {'AI' if 'AI' in playMode else 'H'}\n")
+        match(playMode):
+            case "H-H":
+                output_file.write("Player 1: H\n")
+                output_file.write("Player 2: H\n")
+            case "AI-H":
+                output_file.write("Player 1: AI\n")
+                output_file.write("Player 2: H\n")
+            case "H-AI":
+                output_file.write("Player 1: H\n")
+                output_file.write("Player 2: AI\n")
+            case "AI-AI":
+                output_file.write("Player 1: AI\n")
+                output_file.write("Player 2: AI\n")
         output_file.write("\nInitial Configuration:\n")
         # Write the initial board configuration to the output file
         output_file.write(str(game))
 
-
-
-    
 
     # the main game loop
     while True:
@@ -1087,7 +1144,6 @@ def main():
                 action_description = "Move not valid"
             with open(output_file_name, "a") as output_file:
                 output_file.write(f"Turn #{game.turns_played}\n")
-                action_description = "Your action description here"
                 if(game.next_player.name=="Attacker"):
                     output_file.write(f"Player Defender: Action: {action_description}\n")
                 else:
@@ -1097,13 +1153,116 @@ def main():
                 output_file.write(str(game)) 
         elif game.options.game_type == GameType.AttackerVsComp and game.next_player == Player.Attacker:
             game.human_turn()
+            if(game.move_coordinates is not None):
+                if(game.move_performed=="moved to"):
+                    action_description = f"moved from {game.move_coordinates.src} to {game.move_coordinates.dst}"
+                elif(game.move_performed=="self destruct"):
+                    action_description = f"unit at {game.move_coordinates.src} self destructed."
+                elif(game.move_performed=="attacked"):
+                    action_description = f"unit at {game.move_coordinates.src} attacked unit at {game.move_coordinates.dst}"
+                elif(game.move_performed=="repaired"):
+                    action_description = f"unit at {game.move_coordinates.dst} repaired unit at {game.move_coordinates.dst}"
+            else:
+                action_description = "Move not valid"
+            with open(output_file_name, "a") as output_file:
+                output_file.write(f"Turn #{game.turns_played}\n")
+                if(game.next_player.name=="Attacker"):
+                    output_file.write(f"Player Defender: Action: {action_description}\n")
+                else:
+                    output_file.write(f"Player Attacker: Action: {action_description}\n")
+            with open(output_file_name, "a") as output_file:
+                output_file.write("New Configuration:\n")
+                output_file.write(str(game)) 
         elif game.options.game_type == GameType.CompVsDefender and game.next_player == Player.Defender:
             game.human_turn()
+            if(game.move_coordinates is not None):
+                if(game.move_performed=="moved to"):
+                    action_description = f"moved from {game.move_coordinates.src} to {game.move_coordinates.dst}"
+                elif(game.move_performed=="self destruct"):
+                    action_description = f"unit at {game.move_coordinates.src} self destructed."
+                elif(game.move_performed=="attacked"):
+                    action_description = f"unit at {game.move_coordinates.src} attacked unit at {game.move_coordinates.dst}"
+                elif(game.move_performed=="repaired"):
+                    action_description = f"unit at {game.move_coordinates.dst} repaired unit at {game.move_coordinates.dst}"
+            else:
+                action_description = "Move not valid"
+            with open(output_file_name, "a") as output_file:
+                output_file.write(f"Turn #{game.turns_played}\n")
+                if(game.next_player.name=="Attacker"):
+                    output_file.write(f"Player Defender: Action: {action_description}\n")
+                else:
+                    output_file.write(f"Player Attacker: Action: {action_description}\n")
+            with open(output_file_name, "a") as output_file:
+                output_file.write("New Configuration:\n")
+                output_file.write(str(game)) 
         else:
             player = game.next_player
+             # Measure the time for AI action
+            start_time = datetime.now()
             move = game.computer_turn()
+            elapsed_seconds = (datetime.now() - start_time).total_seconds()
 
+            if move:
+                if(options.heuristic_name=="e0"):
+                    heuristic_score = game.get_heuristic_e0()
+                elif(options.heuristic_name=="e1"):
+                    heuristic_score = game.get_heuristic_e1()
+                else:
+                    heuristic_score = game.get_heuristic_e2()
+                print(f"Turn #{game.turns_played}")
+                print(f"Player: {player.name}")
+                print(f"Action: {move}")
+                print(f"Time for this action: {elapsed_seconds:.2f} sec")
+                print(f"Heuristic score: {heuristic_score}")
+                print("New Configuration:")
+                print(game)
 
+                with open(output_file_name, "a") as output_file:
+                    output_file.write(f"Turn #{game.turns_played} \n")
+                    output_file.write(f"Player: {player.name} \n")
+                    output_file.write(f"Action: {move} \n")
+                    output_file.write(f"Time for this action: {elapsed_seconds:.2f} sec \n")
+                    output_file.write(f"Heuristic score: {heuristic_score} \n")
+                    output_file.write("New Configuration:\n")
+                    output_file.write(str(game))
+                # Update cumulative information
+                cumulative_info[player]["Cumulative Evals"] += 1
+                depth = game.turns_played
+                cumulative_info[player]["Cumulative Evals by Depth"][depth] = cumulative_info[player].get("Cumulative Evals by Depth", {}).get(depth, 0) + 1
+                cumulative_info[player]["Average Branching Factor"] = cumulative_info[player]["Cumulative Evals"] / (depth + 1)
+                total_evals = cumulative_info[player]["Cumulative Evals"]
+                cumulative_info[player]["Cumulative % Evals by Depth"] = {
+                    k: v / total_evals * 100 for k, v in cumulative_info[player]["Cumulative Evals by Depth"].items()
+                }
+
+                # Print cumulative information
+                print(f"Cumulative Information (Player {player.name} - {'AI'}):")
+                print(f"Cumulative Evals: {cumulative_info[player]['Cumulative Evals']/1e6:.2f}M")
+                print(f"Cumulative Evals by Depth:", end=' ')
+                for depth, depth_evals in cumulative_info[player]["Cumulative Evals by Depth"].items():
+                    print(f"{depth}={depth_evals}", end=' ')
+                print()
+                print(f"Cumulative % Evals by Depth:", end=' ')
+                for depth, percentage in cumulative_info[player]["Cumulative % Evals by Depth"].items():
+                    print(f"{depth}={percentage:.1f}%", end=' ')
+                print()
+                print(f"Average Branching Factor: {cumulative_info[player]['Average Branching Factor']:.1f}")
+
+                with open(output_file_name, "a") as output_file:
+                    output_file.write(f"Cumulative Information (Player {player.name} - {'AI'}):\n")
+                    output_file.write(f"Cumulative Evals: {cumulative_info[player]['Cumulative Evals']/1e6:.2f}M\n")
+                    output_file.write(f"Cumulative Evals by Depth: \n" )
+                    for depth, depth_evals in cumulative_info[player]["Cumulative Evals by Depth"].items():
+                        output_file.write(f"{depth}={depth_evals}")
+                        output_file.write(" ")
+                    output_file.write("\n")
+                    output_file.write(f"Cumulative % Evals by Depth:")
+                    output_file.write("\n")
+                    for depth, percentage in cumulative_info[player]["Cumulative % Evals by Depth"].items():
+                        output_file.write(f"{depth}={percentage:.1f}%")
+                        output_file.write(" ")
+                    output_file.write("\n")
+                    output_file.write(f"Average Branching Factor: {cumulative_info[player]['Average Branching Factor']:.1f}\n")
 
 ##############################################################################################################
 
