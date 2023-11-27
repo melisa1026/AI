@@ -297,6 +297,7 @@ class Game:
     move_performed : str = ""
     move_coordinates : CoordPair | None = None
     initial_board_configuration: str = ""  # Define initial_board_configuration as a class attribute
+    turn_evals: int = 0
 
     def __post_init__(self):
         """Automatically called after class init to set up the default board state."""
@@ -695,11 +696,11 @@ class Game:
             (score, move) = self.max_value(0, -100000, 100000, {}, start_time)
 
         new_cumulative_evals = self.stats.cumulative_evals
-        turn_evals = new_cumulative_evals - previous_cumulative_evals
+        self.turn_evals = new_cumulative_evals - previous_cumulative_evals
 
         elapsed_seconds = (datetime.now() - start_time).total_seconds()
         self.stats.total_seconds += elapsed_seconds
-        branching_factor = turn_evals / max(1, self.turns_played)  # Calculate branching factor
+        branching_factor = self.turn_evals / max(1, self.turns_played)  # Calculate branching factor
         print(f"Turn #{self.turns_played}")
         print(f"Player: {self.next_player.name}:", end=' ')
         print(f"Action: {move}" if move else "No valid moves")
@@ -718,6 +719,7 @@ class Game:
                 print(f"{depth}={int(depth_evals/self.stats.cumulative_evals * 100)}%", end=' ')
                 print()
         print(f"Average branching factor: {branching_factor:.1f}")
+        print("Turn evals: " + str(self.turn_evals))
         return move
 
 
@@ -812,6 +814,7 @@ class Game:
         del all_values['nodes']
 
         return [value, best_move]
+
 
     def get_current_player(self) -> Player:
         if self.next_player == Player.Attacker:
@@ -1226,43 +1229,48 @@ def main():
                     output_file.write("New Configuration:\n")
                     output_file.write(str(game))
                 # Update cumulative information
-                cumulative_info[player]["Cumulative Evals"] += 1
+                cumulative_info[player]["Cumulative Evals"] += game.stats.cumulative_evals
                 depth = game.turns_played
-                cumulative_info[player]["Cumulative Evals by Depth"][depth] = cumulative_info[player].get("Cumulative Evals by Depth", {}).get(depth, 0) + 1
-                cumulative_info[player]["Average Branching Factor"] = cumulative_info[player]["Cumulative Evals"] / (depth + 1)
-                total_evals = cumulative_info[player]["Cumulative Evals"]
+                cumulative_info[player]["Cumulative Evals by Depth"] = game.stats.get_percentage_evals_by_depth()
+                cumulative_info[player]["Average Branching Factor"] = game.stats.cumulative_evals / (depth + 1)
+                total_evals = game.stats.cumulative_evals
                 cumulative_info[player]["Cumulative % Evals by Depth"] = {
                     k: v / total_evals * 100 for k, v in cumulative_info[player]["Cumulative Evals by Depth"].items()
                 }
 
-                # Print cumulative information
-                print(f"Cumulative Information (Player {player.name} - {'AI'}):")
-                print(f"Cumulative Evals: {cumulative_info[player]['Cumulative Evals']/1e6:.2f}M")
-                print(f"Cumulative Evals by Depth:", end=' ')
-                for depth, depth_evals in cumulative_info[player]["Cumulative Evals by Depth"].items():
-                    print(f"{depth}={depth_evals}", end=' ')
-                print()
-                print(f"Cumulative % Evals by Depth:", end=' ')
-                for depth, percentage in cumulative_info[player]["Cumulative % Evals by Depth"].items():
-                    print(f"{depth}={percentage:.1f}%", end=' ')
-                print()
-                print(f"Average Branching Factor: {cumulative_info[player]['Average Branching Factor']:.1f}")
 
                 with open(output_file_name, "a") as output_file:
-                    output_file.write(f"Cumulative Information (Player {player.name} - {'AI'}):\n")
-                    output_file.write(f"Cumulative Evals: {cumulative_info[player]['Cumulative Evals']/1e6:.2f}M\n")
-                    output_file.write(f"Cumulative Evals by Depth: \n" )
-                    for depth, depth_evals in cumulative_info[player]["Cumulative Evals by Depth"].items():
-                        output_file.write(f"{depth}={depth_evals}")
-                        output_file.write(" ")
+                    branching_factor = game.turn_evals / max(1, game.turns_played)  # Calculate branching factor
+                    output_file.write("Average time per turn: " + str(game.stats.total_seconds / game.turns_played) + "\n")
+                    output_file.write("Cumulative evals: " + str(game.stats.cumulative_evals) + "\n")
+                    output_file.write(f"Cumulative evals by depth: " )
+                    for depth, depth_evals in game.stats.evals_by_depth.items():
+                        output_file.write(f"{depth}={depth_evals}" )
                     output_file.write("\n")
-                    output_file.write(f"Cumulative % Evals by Depth:")
+                    output_file.write(f"Cumulative % evals by depth:\n")
+                    for depth, depth_evals in game.stats.evals_by_depth.items():
+                        if game.stats.cumulative_evals != 0:
+                            output_file.write(f"{depth}={int(depth_evals / game.stats.cumulative_evals * 100)}%")
+                            output_file.write("\n")
                     output_file.write("\n")
-                    for depth, percentage in cumulative_info[player]["Cumulative % Evals by Depth"].items():
-                        output_file.write(f"{depth}={percentage:.1f}%")
-                        output_file.write(" ")
-                    output_file.write("\n")
-                    output_file.write(f"Average Branching Factor: {cumulative_info[player]['Average Branching Factor']:.1f}\n")
+                    output_file.write(f"Average branching factor: {branching_factor:.1f}\n")
+                    output_file.write("Turn evals: " + str(game.turn_evals) + "\n")
+                    output_file.write("Average turn evals: " + str(game.stats.cumulative_evals / game.turns_played) + "\n")
+
+                    # output_file.write(f"Cumulative Information (Player {player.name} - {'AI'}):\n")
+                    # output_file.write(f"Cumulative Evals: {cumulative_info[player]['Cumulative Evals']/1e6:.2f}M\n")
+                    # output_file.write(f"Cumulative Evals by Depth: \n" )
+                    # for depth, depth_evals in cumulative_info[player]["Cumulative Evals by Depth"].items():
+                    #     output_file.write(f"{depth}={depth_evals}")
+                    #     output_file.write(" ")
+                    # output_file.write("\n")
+                    # output_file.write(f"Cumulative % Evals by Depth:")
+                    # output_file.write("\n")
+                    # for depth, percentage in cumulative_info[player]["Cumulative % Evals by Depth"].items():
+                    #     output_file.write(f"{depth}={percentage:.1f}%")
+                    #     output_file.write(" ")
+                    # output_file.write("\n")
+                    # output_file.write(f"Average Branching Factor: {cumulative_info[player]['Average Branching Factor']:.1f}\n")
 
 ##############################################################################################################
 
