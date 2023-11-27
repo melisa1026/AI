@@ -1,0 +1,298 @@
+Timeout (seconds): 10000
+Max Turns: 10
+Alpha-Beta: true
+Player 1: AI
+Player 2: AI
+
+Initial Configuration:
+Next player: Attacker
+Turns played: 0
+
+    0   1   2   3   4  
+A: dA9 dT9 dF9  .   .  
+B: dT9 dP9  .   .   .  
+C: dF9  .   .   .  aP9 
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+Turn #1 
+Player: Attacker 
+Action: C4 B4 
+Time for this action: 0.19 sec 
+Heuristic score: -6 
+New Configuration:
+Next player: Defender
+Turns played: 1
+
+    0   1   2   3   4  
+A: dA9 dT9 dF9  .   .  
+B: dT9 dP9  .   .  aP9 
+C: dF9  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.187454
+Cumulative evals: 405
+Cumulative evals by depth: 0=11=22=253=274=350
+Cumulative % evals by depth:
+0=0%
+1=0%
+2=6%
+3=6%
+4=86%
+
+Average branching factor: 405.0
+Turn evals: 405
+Average turn evals: 405.0
+Turn #2 
+Player: Defender 
+Action: B1 B1 
+Time for this action: 0.22 sec 
+Heuristic score: 4 
+New Configuration:
+Next player: Attacker
+Turns played: 2
+
+    0   1   2   3   4  
+A: dA7 dT7 dF7  .   .  
+B: dT7  .   .   .  aP9 
+C: dF7  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.206079
+Cumulative evals: 925
+Cumulative evals by depth: 0=21=142=413=2604=608
+Cumulative % evals by depth:
+0=0%
+1=1%
+2=4%
+3=28%
+4=65%
+
+Average branching factor: 260.0
+Turn evals: 520
+Average turn evals: 462.5
+Turn #3 
+Player: Attacker 
+Action: B4 B4 
+Time for this action: 0.31 sec 
+Heuristic score: -6 
+New Configuration:
+Next player: Defender
+Turns played: 3
+
+    0   1   2   3   4  
+A: dA7 dT7 dF7  .   .  
+B: dT7  .   .   .   .  
+C: dF7  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.238787
+Cumulative evals: 1470
+Cumulative evals by depth: 0=31=172=763=2984=1076
+Cumulative % evals by depth:
+0=0%
+1=1%
+2=5%
+3=20%
+4=73%
+
+Average branching factor: 181.7
+Turn evals: 545
+Average turn evals: 490.0
+Turn #4 
+Player: Defender 
+Action: A0 B0 
+Time for this action: 0.20 sec 
+Heuristic score: 6 
+New Configuration:
+Next player: Attacker
+Turns played: 4
+
+    0   1   2   3   4  
+A: dA7 dT7 dF7  .   .  
+B: dT7  .   .   .   .  
+C: dF7  .   .   .   .  
+D:  .   .   .  aF9 aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.22880275
+Cumulative evals: 2083
+Cumulative evals by depth: 0=41=342=943=5864=1365
+Cumulative % evals by depth:
+0=0%
+1=1%
+2=4%
+3=28%
+4=65%
+
+Average branching factor: 153.2
+Turn evals: 613
+Average turn evals: 520.75
+Turn #5 
+Player: Attacker 
+Action: D3 C3 
+Time for this action: 0.26 sec 
+Heuristic score: -18 
+New Configuration:
+Next player: Defender
+Turns played: 5
+
+    0   1   2   3   4  
+A: dA7 dT7 dF7  .   .  
+B: dT7  .   .   .   .  
+C: dF7  .   .  aF9  .  
+D:  .   .   .   .  aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.23440080000000002
+Cumulative evals: 2621
+Cumulative evals by depth: 0=51=372=1283=6244=1827
+Cumulative % evals by depth:
+0=0%
+1=1%
+2=4%
+3=23%
+4=69%
+
+Average branching factor: 107.6
+Turn evals: 538
+Average turn evals: 524.2
+Turn #6 
+Player: Defender 
+Action: A0 B0 
+Time for this action: 0.24 sec 
+Heuristic score: 18 
+New Configuration:
+Next player: Attacker
+Turns played: 6
+
+    0   1   2   3   4  
+A: dA7 dT7 dF7  .   .  
+B: dT7  .   .   .   .  
+C: dF7  .   .  aF9  .  
+D:  .   .   .   .  aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.23506666666666667
+Cumulative evals: 3234
+Cumulative evals by depth: 0=61=542=1463=9124=2116
+Cumulative % evals by depth:
+0=0%
+1=1%
+2=4%
+3=28%
+4=65%
+
+Average branching factor: 102.2
+Turn evals: 613
+Average turn evals: 539.0
+Turn #7 
+Player: Attacker 
+Action: C3 B3 
+Time for this action: 0.16 sec 
+Heuristic score: -18 
+New Configuration:
+Next player: Defender
+Turns played: 7
+
+    0   1   2   3   4  
+A: dA7 dT7 dF7  .   .  
+B: dT7  .   .  aF9  .  
+C: dF7  .   .   .   .  
+D:  .   .   .   .  aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.22410614285714286
+Cumulative evals: 3609
+Cumulative evals by depth: 0=71=562=1703=9404=2436
+Cumulative % evals by depth:
+0=0%
+1=1%
+2=4%
+3=26%
+4=67%
+
+Average branching factor: 53.6
+Turn evals: 375
+Average turn evals: 515.5714285714286
+Turn #8 
+Player: Defender 
+Action: A0 B0 
+Time for this action: 0.25 sec 
+Heuristic score: 18 
+New Configuration:
+Next player: Attacker
+Turns played: 8
+
+    0   1   2   3   4  
+A: dA7 dT7 dF7  .   .  
+B: dT7  .   .  aF9  .  
+C: dF7  .   .   .   .  
+D:  .   .   .   .  aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.227322625
+Cumulative evals: 4218
+Cumulative evals by depth: 0=81=732=1883=12264=2723
+Cumulative % evals by depth:
+0=0%
+1=1%
+2=4%
+3=29%
+4=64%
+
+Average branching factor: 76.1
+Turn evals: 609
+Average turn evals: 527.25
+Turn #9 
+Player: Attacker 
+Action: B3 B3 
+Time for this action: 0.22 sec 
+Heuristic score: -18 
+New Configuration:
+Next player: Defender
+Turns played: 9
+
+    0   1   2   3   4  
+A: dA7 dT7 dF5  .   .  
+B: dT7  .   .   .   .  
+C: dF7  .   .   .   .  
+D:  .   .   .   .  aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.2265803333333333
+Cumulative evals: 4663
+Cumulative evals by depth: 0=91=762=2193=12594=3100
+Cumulative % evals by depth:
+0=0%
+1=1%
+2=4%
+3=26%
+4=66%
+
+Average branching factor: 49.4
+Turn evals: 445
+Average turn evals: 518.1111111111111
+Turn #10 
+Player: Defender 
+Action: A0 B0 
+Time for this action: 0.28 sec 
+Heuristic score: 18 
+New Configuration:
+Next player: Attacker
+Turns played: 10
+
+    0   1   2   3   4  
+A: dA7 dT7 dF5  .   .  
+B: dT7  .   .   .   .  
+C: dF7  .   .   .   .  
+D:  .   .   .   .  aV9 
+E:  .   .  aP9 aV9 aA9 
+Average time per turn: 0.23189019999999996
+Cumulative evals: 5277
+Cumulative evals by depth: 0=101=932=2373=15474=3390
+Cumulative % evals by depth:
+0=0%
+1=1%
+2=4%
+3=29%
+4=64%
+
+Average branching factor: 61.4
+Turn evals: 614
+Average turn evals: 527.7
+
+Defender wins in 10 turns!

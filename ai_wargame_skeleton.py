@@ -757,9 +757,9 @@ class Game:
                 best_move = move
             # if alpha-beta pruning is on:
             if(self.options.alpha_beta==True):
-                if new_value <= alpha:
+                if new_value >= beta:
                     break
-                if new_value < beta:
+                if new_value > alpha:
                     beta = new_value
         
         if depth == 0:
@@ -806,6 +806,7 @@ class Game:
             # if alpha-beta pruning is on:
             if(self.options.alpha_beta==True):
                 if new_value <= alpha:
+                    print("pruned")
                     break
                 if new_value < beta:
                     beta = new_value
